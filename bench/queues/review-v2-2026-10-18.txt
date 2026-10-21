@@ -1,0 +1,7 @@
+# Review prompt version 2 (judged only against the specification), code as written, thinking off.
+# Same 232 solutions and reviewers as review_fresh_nothink, best reviewers first; ~3.5-4 h in total.
+quality gemma4-31b-qat lmstudio vulkan --only review_fresh_v2_nothink
+quality qwen3.8-27b-q4xl lmstudio vulkan --only review_fresh_v2_nothink
+quality gemma4-26b-a4b-qat lmstudio vulkan --only review_fresh_v2_nothink
+quality qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --only review_fresh_v2_nothink
+quality qwen3.5-9b-q8 lmstudio vulkan --only review_fresh_v2_nothink

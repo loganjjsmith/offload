@@ -1,0 +1,40 @@
+# Runtimes and GPU backends under test. Every runtime is reached through its
+# OpenAI-compatible API; only loading and unloading models is runtime-specific.
+
+lmstudio:
+  cli: ~/.lmstudio/bin/lms.exe
+  base_url: http://127.0.0.1:1234/v1
+  models_dir: ~/.lmstudio/models
+  # A model nobody has used for this long is unloaded by LM Studio itself, so a run that dies
+  # before its teardown does not leave the GPU loaded.
+  idle_unload_seconds: 900
+  backends:
+    vulkan: llama.cpp-win-x86_64-vulkan-avx2@2.59.0
+    rocm: llama.cpp-win-x86_64-amd-rocm-avx2@2.59.0
+
+strata:
+  # Strata serves one model at a time and chooses its own engine for the card (hip-rdna3 here).
+  # Installed per user with its Terminal installer; models live in its own data folder.
+  cli: ~/AppData/Local/Strata/terminal/current/bin/strata.cmd
+  base_url: http://127.0.0.1:8080/v1
+  port: 8080
+
+ollama:
+  # The benchmark starts its own Ollama server per backend, so settings are
+  # explicit and the tray app's default server (port 11434) is left alone.
+  cli: ~/AppData/Local/Programs/Ollama/ollama.exe
+  backends:
+    rocm:
+      port: 11436
+      env: {}
+    vulkan:
+      port: 11435
+      env:
+        HIP_VISIBLE_DEVICES: "-1"
+        ROCR_VISIBLE_DEVICES: "-1"
+        OLLAMA_VULKAN: "1"
+  common_env:
+    OLLAMA_NUM_PARALLEL: "1"
+    OLLAMA_MAX_LOADED_MODELS: "1"
+    OLLAMA_KEEP_ALIVE: "15m"
+    OLLAMA_FLASH_ATTENTION: "1"

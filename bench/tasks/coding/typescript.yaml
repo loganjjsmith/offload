@@ -1,0 +1,204 @@
+# TypeScript coding-to-spec problems, written 2026-10-15 for this project.
+# The solution is saved as solution.mts and run by Node 24 with type stripping, so
+# answers must use erasable TypeScript only (no enums or parameter properties).
+# Tests import from ./solution.mts and must exit 0.
+
+- id: ts-csv-line
+  prompt: |
+    Write and export a TypeScript function `parseCsvLine(line: string): string[]` that splits one CSV
+    line into fields. Fields are separated by commas. A field may be wrapped in double quotes, in which
+    case it may contain commas, and a doubled quote ("") inside it stands for one quote character.
+    Unquoted fields are returned exactly as written, including spaces. An empty line is one empty field.
+  tests: |
+    import { parseCsvLine as p } from "./solution.mts";
+    import assert from "node:assert/strict";
+    assert.deepEqual(p("a,b,c"), ["a", "b", "c"]);
+    assert.deepEqual(p('"x,y",z'), ["x,y", "z"]);
+    assert.deepEqual(p('"say ""hi""",2'), ['say "hi"', "2"]);
+    assert.deepEqual(p("a,,b,"), ["a", "", "b", ""]);
+    assert.deepEqual(p(""), [""]);
+    assert.deepEqual(p(" a , b"), [" a ", " b"]);
+    assert.deepEqual(p('""'), [""]);
+  reference: |
+    export function parseCsvLine(line: string): string[] {
+      const out: string[] = [];
+      let cur = "", quoted = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (quoted) {
+          if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+          else if (ch === '"') quoted = false;
+          else cur += ch;
+        } else if (ch === '"') quoted = true;
+        else if (ch === ",") { out.push(cur); cur = ""; }
+        else cur += ch;
+      }
+      out.push(cur);
+      return out;
+    }
+
+- id: ts-grid-path
+  prompt: |
+    Write and export a TypeScript function `shortestPath(grid: string[]): number`. Each string is a row;
+    '#' is a wall, '.' is open floor, 'S' is the start and 'E' is the end (both walkable). Moves are up,
+    down, left and right. Return the number of moves on the shortest path from S to E, or -1 if E cannot
+    be reached.
+  tests: |
+    import { shortestPath as s } from "./solution.mts";
+    import assert from "node:assert/strict";
+    assert.equal(s(["S.E"]), 2);
+    assert.equal(s(["S#E"]), -1);
+    assert.equal(s(["S..", "##.", "E.."]), 6);
+    assert.equal(s(["SE"]), 1);
+    assert.equal(s(["S.#.", ".##.", "...E"]), 5);
+    assert.equal(s(["S", ".", "#", "E"]), -1);
+  reference: |
+    export function shortestPath(grid: string[]): number {
+      let start: [number, number] = [0, 0];
+      grid.forEach((row, r) => { const c = row.indexOf("S"); if (c >= 0) start = [r, c]; });
+      const seen = new Set([start.join(",")]);
+      let frontier = [start], steps = 0;
+      while (frontier.length) {
+        const next: [number, number][] = [];
+        for (const [r, c] of frontier) {
+          if (grid[r][c] === "E") return steps;
+          for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const nr = r + dr, nc = c + dc, key = nr + "," + nc;
+            if (nr < 0 || nr >= grid.length || nc < 0 || nc >= grid[nr].length) continue;
+            if (grid[nr][nc] === "#" || seen.has(key)) continue;
+            seen.add(key);
+            next.push([nr, nc]);
+          }
+        }
+        frontier = next;
+        steps++;
+      }
+      return -1;
+    }
+
+- id: ts-format-bytes
+  prompt: |
+    Write and export a TypeScript function `formatBytes(n: number): string`. Below 1024 return the
+    integer with " B", e.g. "512 B". Otherwise divide by 1024 repeatedly to the largest unit among KB,
+    MB, GB, TB where the value is at least 1, and format with one decimal place, dropping a trailing
+    ".0": 1536 -> "1.5 KB", 1048576 -> "1 MB". Rounding happens before choosing the unit, so a value
+    that rounds up to 1024 moves to the next unit: 1048550 bytes is "1 MB", not "1024 KB". TB is the
+    largest unit. Negative input throws a RangeError.
+  tests: |
+    import { formatBytes as f } from "./solution.mts";
+    import assert from "node:assert/strict";
+    assert.equal(f(0), "0 B");
+    assert.equal(f(512), "512 B");
+    assert.equal(f(1023), "1023 B");
+    assert.equal(f(1024), "1 KB");
+    assert.equal(f(1536), "1.5 KB");
+    assert.equal(f(1048576), "1 MB");
+    assert.equal(f(1048550), "1 MB");
+    assert.equal(f(1048524), "1023.9 KB");
+    assert.equal(f(5.5 * 1024 ** 3), "5.5 GB");
+    assert.equal(f(3000 * 1024 ** 4), "3000 TB");
+    assert.throws(() => f(-1), RangeError);
+  reference: |
+    export function formatBytes(n: number): string {
+      if (n < 0) throw new RangeError("negative");
+      if (n < 1024) return `${Math.round(n)} B`;
+      const units = ["KB", "MB", "GB", "TB"];
+      let v = n / 1024, i = 0;
+      while (true) {
+        const rounded = Math.round(v * 10) / 10;
+        if (rounded >= 1024 && i < units.length - 1) { v /= 1024; i++; continue; }
+        return `${rounded.toString()} ${units[i]}`;
+      }
+    }
+
+- id: ts-deep-equal
+  prompt: |
+    Write and export a TypeScript function `deepEqual(a: unknown, b: unknown): boolean` for JSON-like
+    values: null, booleans, numbers, strings, arrays and plain objects. Arrays are equal when they have
+    the same length and equal elements in order. Objects are equal when they have the same set of own
+    keys and equal values, regardless of key order. NaN equals NaN. An array never equals an object.
+  tests: |
+    import { deepEqual as d } from "./solution.mts";
+    import assert from "node:assert/strict";
+    assert.equal(d(1, 1), true);
+    assert.equal(d(1, "1"), false);
+    assert.equal(d(NaN, NaN), true);
+    assert.equal(d(null, null), true);
+    assert.equal(d(null, {}), false);
+    assert.equal(d([1, [2, { a: 3 }]], [1, [2, { a: 3 }]]), true);
+    assert.equal(d({ a: 1, b: 2 }, { b: 2, a: 1 }), true);
+    assert.equal(d({ a: 1 }, { a: 1, b: undefined }), false);
+    assert.equal(d([], {}), false);
+    assert.equal(d([1, 2], [2, 1]), false);
+    assert.equal(d({ a: [1] }, { a: [1, 2] }), false);
+  reference: |
+    export function deepEqual(a: unknown, b: unknown): boolean {
+      if (typeof a === "number" && typeof b === "number" && Number.isNaN(a) && Number.isNaN(b)) return true;
+      if (a === b) return true;
+      if (a === null || b === null || typeof a !== "object" || typeof b !== "object") return false;
+      if (Array.isArray(a) !== Array.isArray(b)) return false;
+      if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => deepEqual(x, b[i]));
+      const ka = Object.keys(a as object), kb = Object.keys(b as object);
+      if (ka.length !== kb.length) return false;
+      return ka.every(k => Object.prototype.hasOwnProperty.call(b, k) &&
+        deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
+    }
+
+- id: ts-wildcard
+  prompt: |
+    Write and export a TypeScript function `matches(pattern: string, text: string): boolean`. In the
+    pattern, '?' matches exactly one character and '*' matches any sequence of characters, including
+    none. Every other character matches itself. The whole text must match the whole pattern.
+  tests: |
+    import { matches as m } from "./solution.mts";
+    import assert from "node:assert/strict";
+    assert.equal(m("*.cs", "Player.cs"), true);
+    assert.equal(m("*.cs", "Player.cs.meta"), false);
+    assert.equal(m("a?c", "abc"), true);
+    assert.equal(m("a?c", "ac"), false);
+    assert.equal(m("*", ""), true);
+    assert.equal(m("", ""), true);
+    assert.equal(m("", "a"), false);
+    assert.equal(m("a*b*c", "aXXbYYc"), true);
+    assert.equal(m("a*b*c", "aXXcYYb"), false);
+    assert.equal(m("**a", "a"), true);
+    assert.equal(m("*a*a*a*a*b", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), false);
+  reference: |
+    export function matches(pattern: string, text: string): boolean {
+      let p = 0, t = 0, star = -1, mark = 0;
+      while (t < text.length) {
+        if (p < pattern.length && (pattern[p] === "?" || pattern[p] === text[t])) { p++; t++; }
+        else if (p < pattern.length && pattern[p] === "*") { star = p++; mark = t; }
+        else if (star >= 0) { p = star + 1; t = ++mark; }
+        else return false;
+      }
+      while (p < pattern.length && pattern[p] === "*") p++;
+      return p === pattern.length;
+    }
+
+- id: ts-damage
+  prompt: |
+    Write and export a TypeScript function
+    `applyHit(state: { hp: number; shield: number }, damage: number, pierce: boolean): { hp: number; shield: number; dead: boolean }`
+    for a game. It returns a new object and does not modify `state`. Rules: if `pierce` is true the
+    shield is ignored and untouched, and all damage goes to hp. Otherwise the shield absorbs damage
+    first, losing one point per point absorbed, and the remainder goes to hp. Neither value goes below
+    0. `dead` is true when hp is 0. Negative damage is treated as 0.
+  tests: |
+    import { applyHit as h } from "./solution.mts";
+    import assert from "node:assert/strict";
+    const s = { hp: 10, shield: 5 };
+    assert.deepEqual(h(s, 3, false), { hp: 10, shield: 2, dead: false });
+    assert.deepEqual(h(s, 8, false), { hp: 7, shield: 0, dead: false });
+    assert.deepEqual(h(s, 8, true), { hp: 2, shield: 5, dead: false });
+    assert.deepEqual(h(s, 100, false), { hp: 0, shield: 0, dead: true });
+    assert.deepEqual(h(s, -4, false), { hp: 10, shield: 5, dead: false });
+    assert.deepEqual(s, { hp: 10, shield: 5 });
+    assert.deepEqual(h({ hp: 0, shield: 0 }, 0, false), { hp: 0, shield: 0, dead: true });
+  reference: |
+    export function applyHit(state: { hp: number; shield: number }, damage: number, pierce: boolean) {
+      let d = Math.max(0, damage), shield = state.shield;
+      if (!pierce) { const a = Math.min(shield, d); shield -= a; d -= a; }
+      const hp = Math.max(0, state.hp - d);
+      return { hp, shield, dead: hp === 0 };
+    }

@@ -1,0 +1,3 @@
+quality qwen3.8-27b-q4xl lmstudio vulkan --only review_fresh_v2_terse_nothink
+quality gemma4-31b-qat lmstudio vulkan --only review_fresh_v2_terse_nothink
+quality gemma4-26b-a4b-qat lmstudio vulkan --only review_fresh_v2_terse_nothink

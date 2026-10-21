@@ -1,0 +1,11 @@
+quality qwen3.5-9b-q8 lmstudio vulkan --only extraction_fresh --label timeoutfix
+quality gemma4-26b-a4b-qat lmstudio vulkan --only extraction_fresh --label timeoutfix
+quality qwen3.8-27b-q4xl lmstudio vulkan --only coding_fresh --label timeoutfix
+quality qwen3.8-27b-q4xl lmstudio vulkan --only gpqa_diamond --label timeoutfix
+quality gemma4-26b-a4b-qat lmstudio vulkan --only extraction_rows_nothink
+quality qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --only extraction_rows_nothink
+quality qwen3.5-9b-q8 lmstudio vulkan --only extraction_rows_nothink
+quality qwen3.8-27b-q4xl lmstudio vulkan --only extraction_rows_nothink
+quality gemma4-31b-qat lmstudio vulkan --only extraction_rows_nothink
+quality gemma4-31b-qat lmstudio vulkan --only review_fresh_terse_nothink
+quality qwen3.8-27b-q4xl lmstudio vulkan --only review_fresh_terse_nothink

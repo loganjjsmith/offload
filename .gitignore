@@ -1,0 +1,33 @@
+# Agent and diagnostic scratch space
+scratch/
+
+# Benchmark raw output (summaries are committed under bench/results/)
+bench/raw/
+
+# Node
+node_modules/
+dist/
+
+# Delegation server call log (local measurement data) and this machine's folders
+server/logs/
+server/config.local.json
+
+# Python
+__pycache__/
+.venv/
+
+# Model weights never belong in git
+*.gguf
+*.safetensors
+
+# Local agent settings
+.claude/settings.local.json
+
+# Private patterns for the public-snapshot leak scan
+tooling/public.local.json
+
+# Names and notes that must never be committed (see AGENTS.md)
+private/
+
+# Secrets, if any are ever needed
+.env

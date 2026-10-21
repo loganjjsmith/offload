@@ -1,0 +1,259 @@
+# C# coding-to-spec problems, written 2026-10-15 for this project.
+# The answer's `using` lines are hoisted to the top of one file-based app; the tests
+# (top-level statements) come next, then the rest of the answer. `dotnet run` must exit 0.
+# Tests call Check(condition, message), defined by the harness.
+
+- id: cs-closest-point
+  prompt: |
+    Write a C# `public static class Geometry` with a method
+    `public static (double X, double Y) ClosestPointOnSegment((double X, double Y) a, (double X, double Y) b, (double X, double Y) p)`
+    that returns the point on the line segment from a to b that is closest to p. If a and b are the same
+    point, return a.
+  tests: |
+    static bool Near((double X, double Y) u, double x, double y) => Math.Abs(u.X - x) < 1e-9 && Math.Abs(u.Y - y) < 1e-9;
+    Check(Near(Geometry.ClosestPointOnSegment((0, 0), (10, 0), (5, 5)), 5, 0), "middle");
+    Check(Near(Geometry.ClosestPointOnSegment((0, 0), (10, 0), (-3, 2)), 0, 0), "before start");
+    Check(Near(Geometry.ClosestPointOnSegment((0, 0), (10, 0), (14, -1)), 10, 0), "after end");
+    Check(Near(Geometry.ClosestPointOnSegment((0, 0), (4, 4), (4, 0)), 2, 2), "diagonal");
+    Check(Near(Geometry.ClosestPointOnSegment((1, 1), (1, 1), (5, 5)), 1, 1), "degenerate");
+  reference: |
+    public static class Geometry
+    {
+        public static (double X, double Y) ClosestPointOnSegment((double X, double Y) a, (double X, double Y) b, (double X, double Y) p)
+        {
+            double dx = b.X - a.X, dy = b.Y - a.Y, len2 = dx * dx + dy * dy;
+            if (len2 == 0) return a;
+            double t = Math.Clamp(((p.X - a.X) * dx + (p.Y - a.Y) * dy) / len2, 0, 1);
+            return (a.X + t * dx, a.Y + t * dy);
+        }
+    }
+
+- id: cs-ini
+  prompt: |
+    Write a C# `public static class Ini` with `public static Dictionary<string, string> Parse(string text)`.
+    Lines are separated by \n (a trailing \r is ignored). Blank lines and lines whose first non-space
+    character is ';' or '#' are skipped. A line "[name]" (whitespace around it allowed) starts a
+    section. Other lines are "key = value": split at the first '=', trim both sides, and store under
+    "section.key", or just "key" before any section. A later duplicate key overwrites an earlier one.
+    A non-blank line that is none of these throws FormatException.
+  tests: |
+    var d = Ini.Parse("top=1\n; comment\n[player]\nname = Logan \nspeed= 4.5\r\n\n  [ audio ]\n# x\nvolume=0.8=max\nname=Main\n");
+    Check(d["top"] == "1", "top-level key");
+    Check(d["player.name"] == "Logan", "trimmed value");
+    Check(d["player.speed"] == "4.5", "CRLF stripped");
+    Check(d.ContainsKey("audio.volume") && d["audio.volume"] == "0.8=max", "split at first =");
+    Check(d["audio.name"] == "Main", "section scoping");
+    Check(d.Count == 5, "count");
+    Check(Ini.Parse("a=1\na=2")["a"] == "2", "overwrite");
+    bool threw = false;
+    try { Ini.Parse("[ok]\njunk line"); } catch (FormatException) { threw = true; }
+    Check(threw, "FormatException");
+  reference: |
+    public static class Ini
+    {
+        public static Dictionary<string, string> Parse(string text)
+        {
+            var d = new Dictionary<string, string>();
+            string section = null;
+            foreach (var raw in text.Split('\n'))
+            {
+                var line = raw.TrimEnd('\r').Trim();
+                if (line.Length == 0 || line[0] == ';' || line[0] == '#') continue;
+                if (line.StartsWith("[") && line.EndsWith("]")) { section = line[1..^1].Trim(); continue; }
+                int eq = line.IndexOf('=');
+                if (eq < 0) throw new FormatException(line);
+                var key = line[..eq].Trim();
+                d[section == null ? key : section + "." + key] = line[(eq + 1)..].Trim();
+            }
+            return d;
+        }
+    }
+
+- id: cs-ring-buffer
+  prompt: |
+    Write a C# generic class `public class RingBuffer<T>` with a constructor taking a capacity (throw
+    ArgumentOutOfRangeException if it is less than 1), `void Add(T item)`, `int Count`, an indexer
+    `T this[int i]` where 0 is the oldest item still held, and `T[] ToArray()` oldest first. When full,
+    Add overwrites the oldest item. An index outside 0..Count-1 throws ArgumentOutOfRangeException.
+  tests: |
+    var r = new RingBuffer<int>(3);
+    Check(r.Count == 0, "empty");
+    r.Add(1); r.Add(2);
+    Check(r.Count == 2 && r[0] == 1 && r[1] == 2, "partial");
+    r.Add(3); r.Add(4); r.Add(5);
+    Check(r.Count == 3, "count capped");
+    Check(string.Join(",", r.ToArray()) == "3,4,5", "overwrite oldest");
+    Check(r[0] == 3 && r[2] == 5, "indexer after wrap");
+    bool threw = false;
+    try { var _ = r[3]; } catch (ArgumentOutOfRangeException) { threw = true; }
+    Check(threw, "index range");
+    threw = false;
+    try { new RingBuffer<string>(0); } catch (ArgumentOutOfRangeException) { threw = true; }
+    Check(threw, "capacity");
+  reference: |
+    public class RingBuffer<T>
+    {
+        private readonly T[] items;
+        private int start;
+        public int Count { get; private set; }
+        public RingBuffer(int capacity)
+        {
+            if (capacity < 1) throw new ArgumentOutOfRangeException(nameof(capacity));
+            items = new T[capacity];
+        }
+        public void Add(T item)
+        {
+            if (Count < items.Length) { items[(start + Count) % items.Length] = item; Count++; }
+            else { items[start] = item; start = (start + 1) % items.Length; }
+        }
+        public T this[int i]
+        {
+            get
+            {
+                if (i < 0 || i >= Count) throw new ArgumentOutOfRangeException(nameof(i));
+                return items[(start + i) % items.Length];
+            }
+        }
+        public T[] ToArray()
+        {
+            var a = new T[Count];
+            for (int i = 0; i < Count; i++) a[i] = this[i];
+            return a;
+        }
+    }
+
+- id: cs-dijkstra
+  prompt: |
+    Write a C# `public static class Routes` with
+    `public static (int Cost, List<string> Path) Cheapest(Dictionary<string, Dictionary<string, int>> edges, string from, string to)`.
+    `edges[a][b]` is the cost of the one-way edge a -> b; costs are non-negative and a node may appear
+    only as a destination. Return the minimum total cost and the node path including both ends. If `to`
+    cannot be reached return (-1, an empty list). If from equals to, return (0, [from]). When two paths
+    cost the same, either is accepted.
+  tests: |
+    var g = new Dictionary<string, Dictionary<string, int>> {
+        ["A"] = new() { ["B"] = 4, ["C"] = 1 },
+        ["C"] = new() { ["B"] = 2, ["D"] = 7 },
+        ["B"] = new() { ["D"] = 1 },
+    };
+    var (cost, path) = Routes.Cheapest(g, "A", "D");
+    Check(cost == 4 && string.Join(">", path) == "A>C>B>D", "cheapest path");
+    var (c2, p2) = Routes.Cheapest(g, "D", "A");
+    Check(c2 == -1 && p2.Count == 0, "unreachable");
+    var (c3, p3) = Routes.Cheapest(g, "A", "A");
+    Check(c3 == 0 && p3.Count == 1 && p3[0] == "A", "same node");
+    var (c4, p4) = Routes.Cheapest(g, "A", "Z");
+    Check(c4 == -1 && p4.Count == 0, "unknown node");
+  reference: |
+    public static class Routes
+    {
+        public static (int Cost, List<string> Path) Cheapest(Dictionary<string, Dictionary<string, int>> edges, string from, string to)
+        {
+            var dist = new Dictionary<string, int> { [from] = 0 };
+            var prev = new Dictionary<string, string>();
+            var pq = new PriorityQueue<string, int>();
+            pq.Enqueue(from, 0);
+            while (pq.TryDequeue(out var u, out var d))
+            {
+                if (d > dist[u]) continue;
+                if (u == to) break;
+                if (!edges.TryGetValue(u, out var outs)) continue;
+                foreach (var (v, w) in outs)
+                {
+                    if (!dist.TryGetValue(v, out var old) || d + w < old)
+                    {
+                        dist[v] = d + w; prev[v] = u; pq.Enqueue(v, d + w);
+                    }
+                }
+            }
+            if (!dist.ContainsKey(to)) return (-1, new List<string>());
+            var path = new List<string> { to };
+            while (path[0] != from) path.Insert(0, prev[path[0]]);
+            return (dist[to], path);
+        }
+    }
+
+- id: cs-cooldown
+  prompt: |
+    Write a C# class `public class Cooldown` for a tick-based game loop. Constructor:
+    `Cooldown(int durationTicks, int maxCharges)`. Methods and properties: `bool TryUse()` spends a
+    charge if one is available and returns whether it did; `void Tick()` advances time by one tick;
+    `int Charges`. It starts with maxCharges charges. While Charges is below maxCharges, a recharge
+    timer runs: every durationTicks ticks one charge is restored. Recharging restarts from zero after a
+    charge is restored when still below max, and the timer does not run while charges are full. Spending
+    a charge while the timer is already running does not reset it.
+  tests: |
+    var c = new Cooldown(3, 2);
+    Check(c.Charges == 2, "starts full");
+    Check(c.TryUse() && c.TryUse(), "two uses");
+    Check(!c.TryUse() && c.Charges == 0, "empty");
+    c.Tick(); c.Tick();
+    Check(c.Charges == 0, "not yet");
+    c.Tick();
+    Check(c.Charges == 1, "one restored after 3 ticks");
+    c.Tick();
+    Check(c.TryUse() && c.Charges == 0, "use mid-timer");
+    c.Tick(); c.Tick();
+    Check(c.Charges == 1, "timer not reset by use");
+    c.Tick(); c.Tick(); c.Tick();
+    Check(c.Charges == 2, "full again");
+    for (int i = 0; i < 10; i++) c.Tick();
+    Check(c.Charges == 2, "never above max");
+    c.TryUse(); c.Tick(); c.Tick();
+    Check(c.Charges == 1, "timer starts fresh from full");
+  reference: |
+    public class Cooldown
+    {
+        private readonly int duration, max;
+        private int elapsed;
+        public int Charges { get; private set; }
+        public Cooldown(int durationTicks, int maxCharges) { duration = durationTicks; max = maxCharges; Charges = max; }
+        public bool TryUse()
+        {
+            if (Charges == 0) return false;
+            if (Charges == max) elapsed = 0;
+            Charges--;
+            return true;
+        }
+        public void Tick()
+        {
+            if (Charges >= max) return;
+            if (++elapsed >= duration) { Charges++; elapsed = 0; }
+        }
+    }
+
+- id: cs-brackets
+  prompt: |
+    Write a C# `public static class Brackets` with `public static int FirstError(string s)`. It checks
+    that (), [] and {} are balanced and properly nested, ignoring every other character. Return -1 if
+    the string is balanced. Otherwise return the index of the first closing bracket that does not match
+    the most recent unclosed opener (or has no opener); if every closer matches but some openers are
+    left unclosed, return the index of the earliest unclosed opener.
+  tests: |
+    Check(Brackets.FirstError("") == -1, "empty");
+    Check(Brackets.FirstError("a(b[c]{d}e)f") == -1, "balanced");
+    Check(Brackets.FirstError("(]") == 1, "mismatch");
+    Check(Brackets.FirstError("x)") == 1, "no opener");
+    Check(Brackets.FirstError("([{") == 0, "earliest unclosed");
+    Check(Brackets.FirstError("()[(") == 2, "earliest unclosed after balanced part");
+    Check(Brackets.FirstError("{[}]") == 2, "crossed");
+  reference: |
+    public static class Brackets
+    {
+        public static int FirstError(string s)
+        {
+            var stack = new Stack<int>();
+            for (int i = 0; i < s.Length; i++)
+            {
+                char ch = s[i];
+                if (ch is '(' or '[' or '{') stack.Push(i);
+                else if (ch is ')' or ']' or '}')
+                {
+                    char want = ch == ')' ? '(' : ch == ']' ? '[' : '{';
+                    if (stack.Count == 0 || s[stack.Peek()] != want) return i;
+                    stack.Pop();
+                }
+            }
+            return stack.Count == 0 ? -1 : stack.Min();
+        }
+    }

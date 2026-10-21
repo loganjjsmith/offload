@@ -1,0 +1,231 @@
+# Python coding-to-spec problems, written 2026-10-15 for this project.
+# The solution is saved as solution.py; tests import from it and must exit 0.
+
+- id: py-duration
+  prompt: |
+    Write a Python function `parse_duration(text: str) -> int` that converts a duration such as
+    "1h30m15s", "45s", "2h" or "3m5s" into a number of seconds. Units are h, m and s, each used at
+    most once and always in that order. Surrounding whitespace is allowed. Anything else, including an
+    empty string, a unit with no number, a repeated unit or units out of order, raises ValueError.
+  tests: |
+    from solution import parse_duration
+    assert parse_duration("1h30m15s") == 5415
+    assert parse_duration("45s") == 45
+    assert parse_duration("2h") == 7200
+    assert parse_duration(" 3m5s ") == 185
+    assert parse_duration("0s") == 0
+    assert parse_duration("10h0m1s") == 36001
+    for bad in ["", "h", "5", "1s1m", "1h1h", "1x", "1.5h", "m30s", "-1s", "1h 30m"]:
+        try:
+            parse_duration(bad)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"no ValueError for {bad!r}")
+  reference: |
+    import re
+    def parse_duration(text):
+        m = re.fullmatch(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?", text.strip())
+        if not m or not text.strip():
+            raise ValueError(text)
+        h, mi, s = (int(g) if g else 0 for g in m.groups())
+        return h * 3600 + mi * 60 + s
+
+- id: py-stack-items
+  prompt: |
+    Write a Python function `add_items(slots: list, item: str, qty: int, max_stack: int) -> int` for a
+    game inventory. `slots` is a list where each entry is either None (empty) or a two-element list
+    [item_name, count]. Add `qty` of `item` in place: first top up existing stacks of the same item, in
+    slot order, up to max_stack each; then fill empty slots in order, each up to max_stack. Return the
+    quantity that did not fit.
+  tests: |
+    from solution import add_items
+    s = [["wood", 98], None, ["stone", 5], ["wood", 50], None]
+    assert add_items(s, "wood", 60, 99) == 0
+    assert s == [["wood", 99], ["wood", 10], ["stone", 5], ["wood", 99], None]
+    s = [None, None]
+    assert add_items(s, "gem", 250, 100) == 50
+    assert s == [["gem", 100], ["gem", 100]]
+    s = [["gem", 100]]
+    assert add_items(s, "gem", 5, 100) == 5
+    assert s == [["gem", 100]]
+    s = [["ore", 3], None]
+    assert add_items(s, "wood", 0, 10) == 0
+    assert s == [["ore", 3], None]
+  reference: |
+    def add_items(slots, item, qty, max_stack):
+        for slot in slots:
+            if slot is not None and slot[0] == item and qty:
+                take = min(max_stack - slot[1], qty)
+                slot[1] += take
+                qty -= take
+        for i, slot in enumerate(slots):
+            if slot is None and qty:
+                take = min(max_stack, qty)
+                slots[i] = [item, take]
+                qty -= take
+        return qty
+
+- id: py-build-order
+  prompt: |
+    Write a Python function `build_order(deps: dict[str, list[str]]) -> list[str]`. `deps` maps each
+    task to the tasks it depends on; a dependency may also appear only as a value and never as a key.
+    Return every task in an order where each task comes after all its dependencies. When several tasks
+    are ready at the same time, take them in alphabetical order. If there is a cycle, raise ValueError.
+  tests: |
+    from solution import build_order
+    assert build_order({"app": ["lib", "assets"], "lib": ["core"], "assets": []}) == ["assets", "core", "lib", "app"]
+    assert build_order({}) == []
+    assert build_order({"b": [], "a": []}) == ["a", "b"]
+    assert build_order({"z": ["y"], "y": ["x"]}) == ["x", "y", "z"]
+    assert build_order({"c": ["a", "b"], "d": ["a"]}) == ["a", "b", "c", "d"]
+    for cyc in [{"a": ["b"], "b": ["a"]}, {"a": ["a"]}, {"a": ["b"], "b": ["c"], "c": ["a"]}]:
+        try:
+            build_order(cyc)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("cycle not detected")
+  reference: |
+    import heapq
+    def build_order(deps):
+        nodes = set(deps) | {d for ds in deps.values() for d in ds}
+        indeg = {n: 0 for n in nodes}
+        users = {n: [] for n in nodes}
+        for t, ds in deps.items():
+            for d in set(ds):
+                indeg[t] += 1
+                users[d].append(t)
+        ready = [n for n in nodes if indeg[n] == 0]
+        heapq.heapify(ready)
+        out = []
+        while ready:
+            n = heapq.heappop(ready)
+            out.append(n)
+            for u in users[n]:
+                indeg[u] -= 1
+                if indeg[u] == 0:
+                    heapq.heappush(ready, u)
+        if len(out) != len(nodes):
+            raise ValueError("cycle")
+        return out
+
+- id: py-lru
+  prompt: |
+    Write a Python class `LRUCache` with `__init__(self, capacity: int)`, `get(self, key)` and
+    `put(self, key, value)`. `get` returns the value, or None if the key is absent, and counts as a use.
+    `put` inserts or updates and counts as a use; when the cache is over capacity it evicts the least
+    recently used key. Also provide `__len__`. Do not use functools.lru_cache.
+  tests: |
+    from solution import LRUCache
+    c = LRUCache(2)
+    c.put("a", 1); c.put("b", 2)
+    assert c.get("a") == 1
+    c.put("c", 3)
+    assert c.get("b") is None
+    assert c.get("a") == 1 and c.get("c") == 3
+    c.put("a", 10)
+    c.put("d", 4)
+    assert c.get("c") is None and c.get("a") == 10 and c.get("d") == 4
+    assert len(c) == 2
+    one = LRUCache(1)
+    one.put(1, "x"); one.put(2, "y")
+    assert one.get(1) is None and one.get(2) == "y"
+  reference: |
+    from collections import OrderedDict
+    class LRUCache:
+        def __init__(self, capacity):
+            self.capacity = capacity
+            self.data = OrderedDict()
+        def get(self, key):
+            if key not in self.data:
+                return None
+            self.data.move_to_end(key)
+            return self.data[key]
+        def put(self, key, value):
+            self.data[key] = value
+            self.data.move_to_end(key)
+            while len(self.data) > self.capacity:
+                self.data.popitem(last=False)
+        def __len__(self):
+            return len(self.data)
+
+- id: py-wrap
+  prompt: |
+    Write a Python function `wrap(text: str, width: int) -> list[str]` that word-wraps text greedily.
+    Words are separated by any whitespace; output lines join words with single spaces and never exceed
+    `width` characters. A word longer than `width` is split into pieces of exactly `width` characters
+    (the last piece may be shorter), and each piece is placed like a word. Empty or all-whitespace text
+    returns an empty list.
+  tests: |
+    from solution import wrap
+    assert wrap("the quick brown fox", 10) == ["the quick", "brown fox"]
+    assert wrap("  a   b  ", 5) == ["a b"]
+    assert wrap("", 4) == []
+    assert wrap("   ", 4) == []
+    assert wrap("abcdefghij", 4) == ["abcd", "efgh", "ij"]
+    assert wrap("hi abcdefghij yo", 4) == ["hi", "abcd", "efgh", "ij", "yo"]
+    assert wrap("one two", 7) == ["one two"]
+  reference: |
+    def wrap(text, width):
+        pieces = []
+        for w in text.split():
+            pieces.extend(w[i:i + width] for i in range(0, len(w), width))
+        lines, cur = [], ""
+        for p in pieces:
+            if not cur:
+                cur = p
+            elif len(cur) + 1 + len(p) <= width:
+                cur += " " + p
+            else:
+                lines.append(cur)
+                cur = p
+        if cur:
+            lines.append(cur)
+        return lines
+
+- id: py-semver
+  prompt: |
+    Write a Python function `compare_versions(a: str, b: str) -> int` for semantic versions of the form
+    MAJOR.MINOR.PATCH with an optional pre-release after a hyphen, such as "1.2.3" or "1.2.3-beta.2".
+    Return -1 if a < b, 0 if equal, 1 if a > b. Rules: compare major, minor and patch numerically; a
+    version with a pre-release is lower than the same version without one; pre-releases compare by
+    dot-separated identifiers left to right, numeric identifiers numerically and lower than alphanumeric
+    ones, alphanumeric identifiers by ASCII order, and a shorter list of identifiers is lower when all
+    earlier ones are equal.
+  tests: |
+    from solution import compare_versions as c
+    assert c("1.0.0", "1.0.0") == 0
+    assert c("1.0.0", "2.0.0") == -1
+    assert c("1.10.0", "1.9.0") == 1
+    assert c("1.0.0-alpha", "1.0.0") == -1
+    assert c("1.0.0", "1.0.0-rc.1") == 1
+    order = ["1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta", "1.0.0-beta", "1.0.0-beta.2",
+             "1.0.0-beta.11", "1.0.0-rc.1", "1.0.0"]
+    for x, y in zip(order, order[1:]):
+        assert c(x, y) == -1, (x, y)
+        assert c(y, x) == 1, (y, x)
+  reference: |
+    def compare_versions(a, b):
+        def parse(v):
+            core, _, pre = v.partition("-")
+            return [int(x) for x in core.split(".")], (pre.split(".") if pre else None)
+        (ca, pa), (cb, pb) = parse(a), parse(b)
+        if ca != cb:
+            return -1 if ca < cb else 1
+        if pa == pb:
+            return 0
+        if pa is None:
+            return 1
+        if pb is None:
+            return -1
+        for x, y in zip(pa, pb):
+            if x == y:
+                continue
+            xd, yd = x.isdigit(), y.isdigit()
+            if xd and yd:
+                return -1 if int(x) < int(y) else 1
+            if xd != yd:
+                return -1 if xd else 1
+            return -1 if x < y else 1
+        return (len(pa) > len(pb)) - (len(pa) < len(pb))

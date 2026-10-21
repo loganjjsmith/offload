@@ -1,0 +1,9 @@
+services:
+  default:
+    image: offload-bench-sandbox:1
+    build: .
+    init: true
+    command: tail -f /dev/null
+    network_mode: none
+    mem_limit: 2g
+    cpus: 2

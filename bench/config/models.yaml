@@ -1,0 +1,62 @@
+# Candidate models. Paths are relative to LM Studio's models folder, where every
+# GGUF is downloaded once; Ollama imports the same file.
+#
+# tier: the routing role the model is a candidate for.
+#   fast   - trivial, high-volume jobs (summaries, extraction, classification)
+#   mid    - everyday work where speed matters (drafts, routine code)
+#   strong - the most capable model that fits in 24 GB
+# family: picks the vendor's recommended sampling settings below.
+# source: the model card the published scores and sampling settings come from.
+
+# Vendor-recommended settings for thinking mode. Published scores use them, so
+# quality runs do too, keeping our numbers comparable.
+sampling:
+  qwen: {temperature: 1.0, top_p: 0.95, top_k: 20}
+  gemma: {temperature: 1.0, top_p: 0.95, top_k: 64}
+models:
+  qwen3.5-9b-q8:
+    file: Qwen/Qwen3.5-9B-GGUF/Qwen3.5-9B-Q8_0.gguf
+    tier: fast
+    family: qwen
+    released: 2026-02
+    source: https://huggingface.co/Qwen/Qwen3.5-9B
+
+  # Qwen3.6 35B-A3B with its multi-token-prediction head bundled, which LM Studio's MTP speculative
+  # decoding requires. Kept over Q4_K_XL (with and without the head): same scores within noise, same
+  # speed, 4 GB less VRAM and 10-17 s loads (2026-10-16).
+  qwen3.6-35b-a3b-mtp-iq4xs:
+    file: unsloth/Qwen3.6-35B-A3B-MTP-GGUF/Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
+    tier: mid
+    family: qwen
+    released: 2026-04
+    source: https://huggingface.co/unsloth/Qwen3.6-35B-A3B-MTP-GGUF
+
+  gemma4-26b-a4b-qat:
+    file: google/gemma-4-26B-A4B-GGUF/gemma-4-26B_q4_0-it.gguf
+    tier: mid
+    family: gemma
+    released: 2026-03
+    source: https://huggingface.co/google/gemma-4-26B-A4B-it
+
+  qwen3.8-27b-q4xl:
+    file: Qwen/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_XL.gguf
+    tier: strong
+    family: qwen
+    released: 2026-08
+    source: https://huggingface.co/Qwen/Qwen3.8-27B
+
+  # Runs on Strata only (runtime strata). 125B mixture of experts pruned to 256 of 512 experts, at
+  # IQ1_M: the only size Strata lists as fitting 32 GB of RAM. `file` is Strata's, not LM Studio's.
+  qwen3.8-flash-next-coder-iq1m:
+    file: strata/Qwen3.8-Flash-Next-Coder-IQ1_M
+    strata: {model: iq1_m, family: coder}
+    tier: strong
+    family: qwen
+    source: https://github.com/Niko1221/Strata/blob/main/docs/MODELS.md
+
+  gemma4-31b-qat:
+    file: google/gemma-4-31B-GGUF/gemma-4-31B_q4_0-it.gguf
+    tier: strong
+    family: gemma
+    released: 2026-03
+    source: https://huggingface.co/google/gemma-4-31B-it

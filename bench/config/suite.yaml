@@ -1,0 +1,144 @@
+# Standard-benchmark quality suite, pinned so scores stay comparable across months.
+# Bumping anything here is a new suite version; finalists are re-run under it.
+
+version: 2026-10-b
+# 2026-10-21, kept within 2026-10-b: the extraction tasks' fictional issue-tracker header names the
+# project "Ironwood" instead of a real project's name. One label line, no item, field or answer changes.
+inspect_ai: 0.3.281
+inspect_evals: 0.24.0
+sample_seed: 20261015      # fixed shuffle, so every model sees the same subset
+
+# Generation limits for every task. A thinking model that has not answered within
+# max_tokens scores zero on that question, which is the honest cost of fit.
+generate:
+  max_tokens: 16384
+  prompt_room: 12288        # context per request beyond max_tokens, for the longest prompt in the suite
+  parallel: 8               # concurrent requests; batching raises total throughput (halved if it does not fit)
+  timeout_s: 2400           # a whole request, retries included
+  # One attempt, and also Inspect's HTTP request timeout (set by quality.py; Inspect's own default of
+  # 600 s cut every longer answer, which is what the "lost requests" of 2026-10-16 were). The slowest
+  # real answer measured (16k tokens at ~17 tok/s per slot) takes ~16 min.
+  attempt_timeout_s: 1200
+  # A sample that still has no answer after its retries is scored as a failure (it did not answer in
+  # time) instead of voiding the task; the count is recorded as errored_samples and shown in the summary.
+  fail_on_error: 0.5
+
+# Gate (quality --gated): these short tasks run first, about two minutes on any model. If an
+# already-measured model scores at least as well on them, writes at least as fast and needs no
+# more VRAM, the new model is dominated and skips everything else. No Docker needed.
+screen: [bugfind_fresh_nothink, extraction_fresh_nothink]
+
+# Tiers: quick screens weed out weak models (wide confidence intervals),
+# full runs are for finalists. `limit` is the number of samples; null is all.
+tasks:
+  # Quick sizes were cut on 2026-10-15 after measuring ~9k thinking tokens per GPQA question;
+  # the fixed shuffle means a smaller quick set is the first part of a larger one.
+  gpqa_diamond:
+    task: inspect_evals/gpqa_diamond
+    area: knowledge and reasoning
+    limit: {quick: 20, full: null}
+  mmlu_pro:
+    task: inspect_evals/mmlu_pro
+    area: knowledge and reasoning
+    limit: {quick: 30, full: 1000}
+  ifeval:
+    task: inspect_evals/ifeval
+    area: instruction following
+    limit: {quick: 30, full: null}
+  bfcl:
+    task: inspect_evals/bfcl
+    area: tool calling
+    limit: {quick: 30, full: 400}
+  math500:
+    task: inspect_evals/math
+    area: maths
+    limit: {quick: 20, full: 500}
+  coding_fresh:
+    task: tasks/coding.py@coding
+    area: coding (fresh, Python / TypeScript / C#)
+    limit: {quick: null, full: null}
+  bugfind_fresh:
+    task: tasks/bugfind.py@bugfind
+    area: code review (fresh)
+    limit: {quick: null, full: null}
+  extraction_fresh:
+    task: tasks/extraction.py@extraction
+    area: reading and extraction (fresh)
+    limit: {quick: null, full: null}
+
+  # The same fresh tasks with thinking turned off: the fast mode the delegation server will
+  # use for routine jobs. LM Studio honours reasoning_effort "none" (2026-10-15).
+  coding_fresh_nothink:
+    task: tasks/coding.py@coding
+    area: coding (fresh), thinking off
+    limit: {quick: null, full: null}
+    generate: {max_tokens: 4096, extra_body: {reasoning_effort: none}}
+  coding_fresh_terse_nothink:
+    task: tasks/coding.py@coding
+    task_args: {terse: true}
+    area: coding (fresh), terse working mode, thinking off
+    limit: {quick: null, full: null}
+    generate: {max_tokens: 4096, extra_body: {reasoning_effort: none}}
+  bugfind_fresh_nothink:
+    task: tasks/bugfind.py@bugfind
+    area: code review (fresh), thinking off
+    limit: {quick: null, full: null}
+    generate: {max_tokens: 4096, extra_body: {reasoning_effort: none}}
+  extraction_fresh_nothink:
+    task: tasks/extraction.py@extraction
+    area: reading and extraction (fresh), thinking off
+    limit: {quick: null, full: null}
+    generate: {max_tokens: 4096, extra_body: {reasoning_effort: none}}
+  # The same extraction split the delegation server's way: the model turns 20-issue chunks into rows
+  # with thinking off, and code computes the answer. Thinking-on extraction ran out of a 16k budget on
+  # long documents (2026-10-17), and the counting is exactly what code does perfectly.
+  extraction_rows_nothink:
+    task: tasks/extraction.py@extraction_rows
+    area: reading and extraction (fresh), rows by the model, answer by code, thinking off
+    limit: {quick: null, full: null}
+    generate: {max_tokens: 4096, extra_body: {reasoning_effort: none}}
+  # Reviewing other models' real solutions with no hint of a bug; scored on catches and false
+  # alarms per writer. Needs the coding runs first, so it runs only when named with --only.
+  review_fresh_nothink:
+    task: tasks/review.py@review
+    area: code review of model-written code, no hint, thinking off
+    limit: {quick: null, full: null}
+    generate: {max_tokens: 4096, extra_body: {reasoning_effort: none}}
+    on_request: true
+  # "Reading terse": the same review with comments and docstrings stripped from the code read.
+  review_fresh_terse_nothink:
+    task: tasks/review.py@review
+    task_args: {strip_comments: true}
+    area: code review of model-written code, comments stripped from the code read, thinking off
+    limit: {quick: null, full: null}
+    generate: {max_tokens: 4096, extra_body: {reasoning_effort: none}}
+    on_request: true
+  # Review prompt version 2: a bug counts only with an input the specification covers.
+  review_fresh_v2_nothink:
+    task: tasks/review.py@review
+    task_args: {spec_only: true}
+    area: code review of model-written code, judged only against the specification, thinking off
+    limit: {quick: null, full: null}
+    generate: {max_tokens: 4096, extra_body: {reasoning_effort: none}}
+    on_request: true
+  # The way reviews will run in the server: prompt version 2 and the code read without comments.
+  review_fresh_v2_terse_nothink:
+    task: tasks/review.py@review
+    task_args: {spec_only: true, strip_comments: true}
+    area: code review of model-written code, judged only against the specification, comments stripped, thinking off
+    limit: {quick: null, full: null}
+    generate: {max_tokens: 4096, extra_body: {reasoning_effort: none}}
+    on_request: true
+  aime2026:
+    task: inspect_evals/aime2026
+    area: maths
+    limit: {quick: 10, full: null}
+    tiers: [strong]
+    on_request: true          # 15-30k thinking tokens per problem; runs only when named with --only
+
+# Contamination. Public benchmark questions can end up in a model's training data,
+# which inflates its score. Dates of each set against the candidates' release dates:
+#   gpqa_diamond 2023, mmlu_pro 2024, ifeval 2023, math 2021: may be memorised;
+#     scored for comparison with published tables, not as proof of capability
+#   aime2026: February 2026, before Qwen3.8 (August 2026)
+#   bench/tasks/: written 2026-10-15 for this project, so no model has seen them

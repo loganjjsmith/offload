@@ -1,0 +1,118 @@
+# Overnight run, 2026-10-15. Per model: speed on every runtime x backend, then the
+# quality quick screen on LM Studio / Vulkan. Ordered by value, so each finished model is
+# complete and the most useful comparisons land before morning.
+
+# Pipeline checks for the two tasks that failed the first smoke test, and the probe's Ollama speed runs
+quality probe-qwen3-8b lmstudio vulkan --only ifeval math500 --limit 2 --max-tokens 2048 --label smoke
+speed probe-qwen3-8b ollama rocm
+speed probe-qwen3-8b ollama vulkan
+
+speed qwen3.5-9b-q8 lmstudio vulkan
+speed qwen3.5-9b-q8 lmstudio rocm
+speed qwen3.5-9b-q8 ollama rocm
+speed qwen3.5-9b-q8 ollama vulkan
+quality qwen3.5-9b-q8 lmstudio vulkan
+quality qwen3.5-9b-q8 lmstudio vulkan --only coding_fresh_nothink bugfind_fresh_nothink extraction_fresh_nothink
+
+speed qwen3.6-35b-a3b-q4xl lmstudio vulkan
+speed qwen3.6-35b-a3b-q4xl lmstudio rocm
+speed qwen3.6-35b-a3b-q4xl ollama rocm
+speed qwen3.6-35b-a3b-q4xl ollama vulkan
+quality qwen3.6-35b-a3b-q4xl lmstudio vulkan --only coding_fresh_nothink bugfind_fresh_nothink extraction_fresh_nothink coding_fresh bugfind_fresh extraction_fresh
+quality qwen3.6-35b-a3b-q4xl lmstudio vulkan --only ifeval bfcl gpqa_diamond
+
+speed qwen3.8-27b-q4xl lmstudio vulkan
+speed qwen3.8-27b-q4xl lmstudio rocm
+speed qwen3.8-27b-q4xl ollama rocm
+speed qwen3.8-27b-q4xl ollama vulkan
+# Speculative decoding with the model's own multi-token-prediction head, if LM Studio supports it for this file
+speed qwen3.8-27b-q4xl lmstudio vulkan --label mtp --load-arg=--speculative-draft-mtp
+quality qwen3.8-27b-q4xl lmstudio vulkan --only coding_fresh_nothink bugfind_fresh_nothink extraction_fresh_nothink coding_fresh bugfind_fresh extraction_fresh
+quality qwen3.8-27b-q4xl lmstudio vulkan --only ifeval bfcl gpqa_diamond
+quality qwen3.8-27b-q4xl lmstudio vulkan --only bugfind_fresh_nothink extraction_fresh_nothink bugfind_fresh extraction_fresh
+
+speed gemma4-26b-a4b-qat lmstudio vulkan
+speed gemma4-26b-a4b-qat lmstudio rocm
+speed gemma4-26b-a4b-qat ollama rocm
+speed gemma4-26b-a4b-qat ollama vulkan
+speed gemma4-26b-a4b-qat lmstudio vulkan --label mtp --load-arg=--speculative-draft-mtp
+quality gemma4-26b-a4b-qat lmstudio vulkan --gated --only bugfind_fresh_nothink extraction_fresh_nothink bugfind_fresh extraction_fresh
+quality gemma4-26b-a4b-qat lmstudio vulkan --gated --only ifeval bfcl gpqa_diamond
+
+# MTP speculative decoding, with the head bundled this time (downloaded 2026-10-16)
+speed qwen3.6-35b-a3b-mtp-q4xl lmstudio vulkan --label mtp --load-arg=--speculative-draft-mtp
+speed qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan
+speed qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --label mtp --load-arg=--speculative-draft-mtp
+quality qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --only bugfind_fresh_nothink extraction_fresh_nothink
+
+speed nemotron3.5-bolt-74b-a9b-24gb lmstudio vulkan
+speed nemotron3.5-bolt-74b-a9b-24gb lmstudio rocm
+quality nemotron3.5-bolt-74b-a9b-24gb lmstudio vulkan --gated --only bugfind_fresh_nothink extraction_fresh_nothink bugfind_fresh extraction_fresh
+quality nemotron3.5-bolt-74b-a9b-24gb lmstudio vulkan --gated --only ifeval bfcl gpqa_diamond
+
+speed gemma4-31b-qat lmstudio vulkan
+speed gemma4-31b-qat lmstudio rocm
+speed gemma4-31b-qat ollama rocm
+speed gemma4-31b-qat ollama vulkan
+quality gemma4-31b-qat lmstudio vulkan --gated --only bugfind_fresh_nothink extraction_fresh_nothink bugfind_fresh extraction_fresh
+# GPQA dropped for Gemma 4 31B (Logan, 2026-10-16): at 33-39 tok/s thinking mode is impractical for
+# routine delegation, thinking added nothing on bug finding (100% off and on), and GPQA would take 3-4 hours
+quality gemma4-31b-qat lmstudio vulkan --gated --only ifeval bfcl
+
+speed qwen3.8-27b-q6 lmstudio vulkan
+quality qwen3.8-27b-q6 lmstudio vulkan --gated --only bugfind_fresh_nothink extraction_fresh_nothink bugfind_fresh extraction_fresh
+# GPQA dropped for the Q6 build: it is here to measure the cost of quantization against Q4, a few points
+# at most, which a 20-question GPQA run (±11) cannot resolve; it would take 2-3 hours at 48-53 tok/s
+quality qwen3.8-27b-q6 lmstudio vulkan --gated --only ifeval bfcl
+
+# The 9B main job hit the 4-hour job limit during this task
+quality qwen3.5-9b-q8 lmstudio vulkan --only extraction_fresh
+
+# (Probe model reruns dropped on 2026-10-16: the probe was only a Phase 1 test model and is deleted.)
+
+# Stopped at 03:40: 8 slots spilled 4.4 GB into system RAM and extraction crawled; rerun with spill-aware loading
+quality qwen3.6-35b-a3b-q4xl lmstudio vulkan --only extraction_fresh
+
+# Docker stopped responding around 06:51 on 2026-10-16; coding tasks need it, so they run last
+quality qwen3.8-27b-q4xl lmstudio vulkan --only coding_fresh_nothink coding_fresh
+quality gemma4-26b-a4b-qat lmstudio vulkan --gated --only coding_fresh_nothink coding_fresh
+quality gemma4-31b-qat lmstudio vulkan --gated --only coding_fresh_nothink coding_fresh
+
+# Which Qwen3.6 MTP build to keep: IQ4_XS scored 20% on extraction against Q4_K_XL's 26%, within noise
+quality qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --only coding_fresh_nothink
+quality qwen3.6-35b-a3b-mtp-q4xl lmstudio vulkan --only coding_fresh_nothink bugfind_fresh_nothink extraction_fresh_nothink
+
+# Stopped 09:42: 2 slots spilled 0.7 GB once the desktop was in use and writing fell to 2.5 tok/s per slot
+quality qwen3.8-27b-q4xl lmstudio vulkan --only gpqa_diamond
+
+# Terse working mode against normal, thinking off, on the three measured models
+# Moved to the IQ4_XS build, the Qwen3.6 keeper (same 78% normal coding as Q4_K_XL, so the comparison holds)
+quality qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --only coding_fresh_terse_nothink
+quality qwen3.8-27b-q4xl lmstudio vulkan --only coding_fresh_terse_nothink
+quality qwen3.5-9b-q8 lmstudio vulkan --only coding_fresh_terse_nothink
+
+# Failed at 11:09 because LM Studio had not finished starting after the reboot
+speed gemma4-26b-a4b-qat lmstudio vulkan --label rerun
+
+# Muse Glimmer 30B (Meta), added 2026-10-16: placed before the review block so its code is reviewed too.
+# Its reasoning is set by a system-prompt line; check that the _nothink tasks really ran without thinking.
+speed muse-glimmer-30b-q4xl lmstudio vulkan
+speed muse-glimmer-30b-q4xl ollama rocm
+quality muse-glimmer-30b-q4xl lmstudio vulkan --gated --only bugfind_fresh_nothink extraction_fresh_nothink bugfind_fresh extraction_fresh
+quality muse-glimmer-30b-q4xl lmstudio vulkan --gated --only ifeval bfcl
+quality muse-glimmer-30b-q4xl lmstudio vulkan --gated --only coding_fresh_nothink coding_fresh
+
+# Code review of model-written code (tasks/review.py): must run after every coding job above, because
+# the first run freezes the set of solutions. Gated, so a dominated model is skipped.
+quality qwen3.5-9b-q8 lmstudio vulkan --gated --only review_fresh_nothink
+quality qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --gated --only review_fresh_nothink
+quality qwen3.8-27b-q4xl lmstudio vulkan --gated --only review_fresh_nothink
+quality gemma4-26b-a4b-qat lmstudio vulkan --gated --only review_fresh_nothink
+quality gemma4-31b-qat lmstudio vulkan --gated --only review_fresh_nothink
+
+# Thinking-on extraction failed twice at exactly 60 min (requests crawling at 2-3 tok/s, then timing out);
+# retried with the mid-run spill watch, which records the peak and stops early if spill is the cause
+quality qwen3.8-27b-q4xl lmstudio vulkan --only coding_fresh --label spillwatch
+quality qwen3.5-9b-q8 lmstudio vulkan --only extraction_fresh --label spillwatch
+# Dropped 2026-10-17 11:05: the 9B retry lost 7 of its first 12 requests, so lost requests on long
+# thinking-on LM Studio runs are shown across three models; the card goes to diagnosing that instead

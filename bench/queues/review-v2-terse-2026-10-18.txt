@@ -1,0 +1,5 @@
+# Review prompt version 2 with comments stripped from the code read: the server's review setup.
+# The three most trustworthy reviewers on the same 232 solutions; ~1.5 h in total.
+quality qwen3.8-27b-q4xl lmstudio vulkan --only review_fresh_v2_terse_nothink
+quality gemma4-31b-qat lmstudio vulkan --only review_fresh_v2_terse_nothink
+quality gemma4-26b-a4b-qat lmstudio vulkan --only review_fresh_v2_terse_nothink

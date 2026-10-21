@@ -1,0 +1,39 @@
+# Published scores, for comparison with what this machine measures. Every number names its
+# source. Vendor numbers are full precision on datacentre hardware with the vendor's own
+# prompts and harness; ours are quantized, local, and on Inspect's prompts, so a gap is expected.
+# Collected 2026-10-15. "~" marks a number from an aggregator rather than the vendor.
+
+qwen3.5-9b-q8:
+  source: https://huggingface.co/Qwen/Qwen3.5-9B
+  scores: {mmlu_pro: 82.5, gpqa_diamond: 81.7, livecodebench_v6: 65.6, ifeval: 91.5, ifbench: 64.5, bfcl_v4: 66.1, tau2: 79.1}
+
+qwen3.6-35b-a3b-q4xl:
+  source: NVIDIA's own harness, in the Nemotron 3.5 Lightning model card (https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16)
+  scores: {mmlu_pro: 85.63, gpqa_diamond: 83.40, swe_bench_verified: 70.12, terminal_bench_2_1: 44.38}
+
+gemma4-26b-a4b-qat:
+  source: https://huggingface.co/google/gemma-4-12B-it (Gemma 4 family table)
+  scores: {mmlu_pro: 82.6, gpqa_diamond: 82.3, aime2026: 88.3, livecodebench_v6: 77.1, tau2: 68.2}
+
+qwen3.8-27b-q4xl:
+  source: https://huggingface.co/Qwen/Qwen3.8-27B
+  scores: {gpqa_diamond: 89.2, livecodebench_v6: 90.3, ifbench: 79.5, hle: 30.8, swe_bench_pro: 61.7, terminal_bench_2_1: 73.0}
+
+gemma4-31b-qat:
+  source: https://huggingface.co/google/gemma-4-12B-it (Gemma 4 family table)
+  scores: {mmlu_pro: 85.2, gpqa_diamond: 84.3, aime2026: 89.2, livecodebench_v6: 80.0, tau2: 76.9}
+
+nemotron3.5-bolt-74b-a9b-24gb:
+  source: https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB-GGUF (scores of this 2-bit build)
+  scores: {gpqa_diamond: 86.43, hle: 25.30, terminal_bench_2_1: 50.98}
+
+# Frontier (subscription) models. Anthropic did not publish GPQA, MMLU-Pro or AIME for its
+# current models, and these older saturated benchmarks barely separate frontier models any more,
+# so the frontier comparison that matters is on the fresh tasks, measured directly (not yet run).
+frontier:
+  claude-opus-4.6-max:
+    source: comparison column in https://huggingface.co/Qwen/Qwen3.8-27B (as reported by Qwen)
+    scores: {gpqa_diamond: 91.3, livecodebench_v6: 88.8, ifbench: 62.5, hle: 40.0, swe_bench_pro: 53.4, terminal_bench_2_1: 78.2}
+  claude-opus-5.5:
+    source: Anthropic's announcement table, via https://benchlm.ai/models/claude-opus-5-5; SWE-bench Pro from an aggregator
+    scores: {swe_bench_multilingual: 93.9, swe_bench_pro: "~89.9"}

@@ -1,0 +1,17 @@
+# Speed-and-fit suite. Identical for every runtime x backend x model.
+
+context_length: 32768     # loaded context for every run, so runtimes are compared like for like
+parallel: 1               # one request at a time, the single-user case
+repeats: 2                # each measurement is repeated and the median reported
+
+# Prompt processing ("reading"): a prompt of this many tokens and a 1-token answer.
+prompt_lengths: [512, 4096, 16384, 30000]
+
+# Generation ("writing"), each as {prompt tokens, answer tokens}.
+#   short: a quick answer to a short prompt
+#   deep:  an answer after a long prompt, as when the model has read a file
+#   long:  a long answer, the shape of reasoning and code generation
+generation:
+  short: {prompt: 256, answer: 512}
+  deep:  {prompt: 16384, answer: 512}
+  long:  {prompt: 256, answer: 3072}

@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local AI on Logan's PC</title>
+<style>
+  :root {
+    --bg: #fbfaf7; --fg: #1f2328; --muted: #5d646d; --accent: #b4441c;
+    --card: #ffffff; --line: #e3e0d8; --good: #2f7d4f; --warn: #a86b00; --code: #f2efe8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #16181c; --fg: #e6e6e6; --muted: #9aa1aa; --accent: #f08a5d;
+            --card: #1e2126; --line: #30343b; --good: #6cc68f; --warn: #e0b04f; --code: #262a31; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+  h1 { font-size: 2.1rem; line-height: 1.2; margin: 0 0 .3rem; }
+  h2 { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 1.45rem; }
+  h3 { margin-top: 1.8rem; font-size: 1.1rem; }
+  .sub { color: var(--muted); margin-top: 0; }
+  nav { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+        padding: .8rem 1.2rem; margin: 1.8rem 0; }
+  nav ol { margin: .3rem 0; padding-left: 1.3rem; columns: 2; column-gap: 2rem; }
+  a { color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .95rem; }
+  th, td { border-bottom: 1px solid var(--line); padding: .45rem .6rem; text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  code { background: var(--code); padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+          padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .yours { border-left: 4px solid var(--accent); }
+  .yours::before { content: "On your machine"; display: block; font-size: .78rem; font-weight: 700;
+                   letter-spacing: .05em; text-transform: uppercase; color: var(--accent); margin-bottom: .3rem; }
+  .pending { color: var(--warn); font-style: italic; }
+  .bar { display: flex; height: 30px; border-radius: 6px; overflow: hidden; margin: .4rem 0 .2rem;
+         border: 1px solid var(--line); font-size: .8rem; }
+  .bar span { display: flex; align-items: center; justify-content: center; color: #fff; white-space: nowrap; overflow: hidden; }
+  .w { background: #b4441c; } .k { background: #3d7ea6; } .o { background: #7a7f87; } .f { background: transparent; color: var(--muted) !important; }
+  .legend { font-size: .85rem; color: var(--muted); }
+  .flow { font-family: ui-monospace, Consolas, monospace; font-size: .85rem; white-space: pre; overflow-x: auto;
+          background: var(--code); padding: 1rem; border-radius: 8px; line-height: 1.45; }
+  footer { margin-top: 4rem; color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Local AI on your PC</h1>
+<p class="sub">How the models in Offload actually work, explained with your hardware rather than a
+generic tutorial's. Read it in any order; each section stands alone.</p>
+
+<nav>
+<strong>Contents</strong>
+<ol>
+  <li><a href="#picture">The big picture</a></li>
+  <li><a href="#model">What a model actually is</a></li>
+  <li><a href="#vram">VRAM: the number that decides everything</a></li>
+  <li><a href="#quant">Quantization: shrinking a model</a></li>
+  <li><a href="#speed">Why speed is about memory, not compute</a></li>
+  <li><a href="#readwrite">Reading is fast, writing is slow</a></li>
+  <li><a href="#context">Context windows and the KV cache</a></li>
+  <li><a href="#moe">Dense vs mixture-of-experts</a></li>
+  <li><a href="#runtimes">Runtimes: LM Studio, Ollama, llama.cpp</a></li>
+  <li><a href="#amd">Your AMD card: Vulkan vs ROCm</a></li>
+  <li><a href="#connect">How it plugs into Claude (or anyone)</a></li>
+  <li><a href="#watch">Watching it work</a></li>
+  <li><a href="#results">Your measured results</a></li>
+  <li><a href="#glossary">Glossary</a></li>
+</ol>
+</nav>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="picture">1. The big picture</h2>
+
+<p>Today, every time Claude reads a file, summarises a log, or writes boilerplate, that text goes to
+Anthropic's servers and counts against your weekly usage. Much of that work is not hard. It is
+<em>bulk</em>: lots of text in and a modest amount out, with little deep reasoning.</p>
+
+<p>Your graphics card can run a capable open-weight language model entirely on your desk. Offload
+makes it a <strong>second worker</strong>:</p>
+
+<ul>
+  <li><strong>Claude</strong> (or whichever cloud agent you use in future) does the thinking: design,
+  tricky logic, deciding what to do, and checking results.</li>
+  <li><strong>The local model</strong> does the legwork: reading and summarising files, extracting facts,
+  drafting routine code, and eventually whole well-specified tasks.</li>
+</ul>
+
+<p>The local model is free per use. It costs electricity and nothing else, it has no rate limit, and nothing
+leaves your machine. The trade-off is that it is less capable than a frontier cloud model, so the
+whole project is about measuring <em>where</em> it is good enough.</p>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="model">2. What a model actually is</h2>
+
+<p>A language model is a very large set of numbers, called <strong>weights</strong> or
+<strong>parameters</strong>, plus a fixed recipe for multiplying text through them. The recipe
+predicts the next token, a word fragment of about ¾ of a word, then appends it and repeats. That loop is
+all "generating" is.</p>
+
+<p>When you see <code>27B</code> in a model name, it means 27 billion parameters. On disk, a model is
+one file, usually a <code>.gguf</code> for the runtimes we use, holding all those numbers. Running the
+model means loading that file into memory and doing the multiplications as fast as possible.</p>
+
+<p>Being Java-minded helps here: think of the weights as an immutable array and inference as a pure
+function, <code>nextToken = f(weights, tokensSoFar)</code>. There's no hidden state between calls. Even
+the "memory" of a conversation is just the whole transcript being fed back in every time.</p>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="vram">3. VRAM: the number that decides everything</h2>
+
+<p>The multiplications need every weight close to the chip doing the work. Your GPU's own memory,
+<strong>VRAM</strong>, is where the model must live to be fast.</p>
+
+<div class="card yours">
+<strong>AMD Radeon RX 7900 XTX: 24 GB of VRAM.</strong> That is the top tier of consumer cards, the same amount as an
+RTX 4090. It comfortably fits the "~30B" class of models, which is where local models start being
+genuinely useful for coding work.<br><br>
+Your Ryzen 9 7900X <em>also</em> has a tiny built-in GPU, "AMD Radeon(TM) Graphics", with 0.5 GB.
+Windows shows both. One of the first checks in Phase 1 is making sure the runtimes use the 7900 XTX
+and not that one.
+</div>
+
+<h3>The rule of thumb</h3>
+<p><strong>Size in GB ≈ billions of parameters × bits per weight ÷ 8.</strong> Models are normally
+stored at about 4–5 bits per weight (see <a href="#quant">quantization</a>), so:</p>
+
+<table>
+  <tr><th>Model size</th><th>At ~4.5 bits/weight</th><th>Fits in your 24 GB?</th></tr>
+  <tr><td>8B</td><td>~5 GB</td><td>Easily, with lots of room for context</td></tr>
+  <tr><td>14B</td><td>~8–9 GB</td><td>Easily</td></tr>
+  <tr><td>27B–32B</td><td>~16–20 GB</td><td><strong>Yes: the sweet spot for your card</strong></td></tr>
+  <tr><td>70B</td><td>~40 GB</td><td>No. It would spill into system RAM and crawl</td></tr>
+</table>
+
+<p>The weights are not the only thing in VRAM. The <a href="#context">KV cache</a> for your
+conversation and some runtime overhead also need room. Here is roughly what a 27B model looks like
+loaded on your card:</p>
+
+<div class="bar">
+  <span class="w" style="width:68%">model weights ~16.5 GB</span>
+  <span class="k" style="width:17%">KV cache ~4 GB</span>
+  <span class="o" style="width:6%">~1.5</span>
+  <span class="f" style="width:9%">free</span>
+</div>
+<p class="legend">24 GB total. Weights (orange), context memory (blue), runtime overhead (grey).
+Illustrative figures; the real ones arrive in <a href="#results">section 13</a>.</p>
+
+<h3>What happens when it does not fit</h3>
+<p>Runtimes can put some of the model in your normal system RAM (32 GB on your PC) and run those
+parts on the CPU. It works, but it is <em>dramatically</em> slower, for the reason explained in the
+next section but one. A model that is 90% on GPU can easily run at a third of the speed of one that is
+100% on GPU. So we aim for <strong>everything in VRAM</strong>.</p>
+
+<div class="card yours">
+<strong>Unity is a competitor.</strong> When the game project is open in the Editor, Unity uses VRAM too,
+from hundreds of MB to several GB depending on the scene. A model that just fits while Unity is
+closed may spill over when it is open. Phase 2 measures exactly this, because both are things you
+actually run together.
+</div>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="quant">4. Quantization: shrinking a model</h2>
+
+<p>Models are trained with each weight as a 16-bit number. <strong>Quantization</strong> rounds the
+weights to fewer bits, like saving a photo as a smaller JPEG. You lose a little detail and gain a lot
+of space.</p>
+
+<table>
+  <tr><th>Name you'll see</th><th>Bits/weight</th><th>27B size</th><th>Quality loss</th></tr>
+  <tr><td>F16 / BF16</td><td>16</td><td>~54 GB</td><td>None (original)</td></tr>
+  <tr><td>Q8_0</td><td>~8.5</td><td>~29 GB</td><td>Practically none</td></tr>
+  <tr><td>Q6_K</td><td>~6.6</td><td>~22 GB</td><td>Very small</td></tr>
+  <tr><td>Q5_K_M</td><td>~5.7</td><td>~19 GB</td><td>Small</td></tr>
+  <tr><td><strong>Q4_K_M</strong></td><td>~4.8</td><td>~16.5 GB</td><td>Small: the usual default</td></tr>
+  <tr><td>Q3_K_M</td><td>~3.9</td><td>~13 GB</td><td>Noticeable, especially for code</td></tr>
+</table>
+
+<p>A common surprise: <strong>a bigger model at Q4 usually beats a smaller model at Q8</strong>. Parameter
+count matters more than precision, down to about 4 bits. Below that, quality starts falling off
+faster. The letters (<code>K_M</code>, <code>K_S</code>) are flavours of the rounding scheme; the
+number is what matters most.</p>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="speed">5. Why speed is about memory, not compute</h2>
+
+<p>To produce <em>one</em> token, the GPU has to read essentially <em>every weight once</em>. The
+arithmetic per weight is tiny, so the bottleneck is how fast the weights can be pulled out of memory: the
+<strong>memory bandwidth</strong>.</p>
+
+<div class="card yours">
+<table>
+  <tr><th></th><th>Bandwidth</th></tr>
+  <tr><td>RX 7900 XTX VRAM (GDDR6)</td><td><strong>~960 GB/s</strong></td></tr>
+  <tr><td>Your system RAM (DDR5-6000, dual channel)</td><td>~96 GB/s</td></tr>
+</table>
+VRAM is about <strong>ten times faster</strong> than system RAM. That is the whole reason spilling
+out of VRAM hurts so much.
+</div>
+
+<p>This gives you a back-of-envelope speed ceiling:</p>
+<p style="text-align:center"><strong>max tokens/s ≈ bandwidth ÷ GB read per token</strong></p>
+<p>For a 27B model at Q4 (~16.5 GB): 960 ÷ 16.5 ≈ <strong>58 tokens/s</strong> at the very most. Real
+runtimes reach perhaps 50–70% of the ceiling, so expect roughly 30–40 tokens/s. That is faster than
+you can read, and about the pace of a fast cloud model. <span class="pending">Your real numbers go in
+section 13 after Phase 2.</span></p>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="readwrite">6. Reading is fast, writing is slow</h2>
+
+<p>A model handles text in two very different phases:</p>
+<ul>
+  <li><strong>Prompt processing ("prefill")</strong> reads your input. All the input tokens are processed
+  <em>in parallel</em>, so the GPU's compute power is the limit, not bandwidth. Expect
+  hundreds to thousands of tokens per second.</li>
+  <li><strong>Generation ("decode")</strong> writes the answer one token at a time, each needing
+  a full pass over the weights. This is the slow ~30–40 tokens/s part.</li>
+</ul>
+
+<p>This matters a lot for Offload. <strong>"Read these 5 files and give me a 10-line summary"</strong> is
+mostly reading, which your GPU does fast, and it is exactly the kind of job that eats cloud tokens. Asking
+the local model to <em>write</em> 2,000 lines is slower and riskier. The first things we delegate will be
+read-heavy, write-light jobs.</p>
+
+<p>The <strong>time to first token</strong>, how long before anything appears, is mostly prefill. For a
+huge prompt it can be several seconds even when generation is quick. Phase 2 measures both.</p>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="context">7. Context windows and the KV cache</h2>
+
+<p>The <strong>context window</strong> is how much text the model can consider at once: your prompt,
+any files and its own answer together. Models advertise big numbers (128K, 256K tokens), but the
+advertised maximum and what fits on your card are different things.</p>
+
+<p>While working, the model keeps a running memo of everything it has read so far, the
+<strong>KV cache</strong>, so it does not recompute it for every new token. That memo grows with every
+token of context and lives in VRAM next to the weights. Long context = big KV cache = less room.</p>
+
+<ul>
+  <li>Some runtimes default to a <em>small</em> context, a few thousand tokens, to be safe. That
+  silently truncates big inputs, a classic "why did it ignore half my file?" bug. We always set
+  context explicitly.</li>
+  <li>The KV cache can itself be quantized (for example to 8-bit), which roughly halves its size for a small
+  quality cost. It's another knob Phase 2 tests.</li>
+  <li>Speed also drops as context fills, because there is more cache to read per token.</li>
+</ul>
+
+<p>Rough scale: 1,000 tokens ≈ 750 English words ≈ 40–80 lines of code. A typical Unity C# script is a
+few thousand tokens.</p>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="moe">8. Dense vs mixture-of-experts</h2>
+
+<p>A <strong>dense</strong> model uses all of its weights for every token. A <strong>mixture-of-experts
+(MoE)</strong> model is split into many "expert" sub-networks, and a small router picks a few per token.
+Name format: <code>30B-A3B</code> means 30B total, about 3B <em>active</em> per token.</p>
+
+<ul>
+  <li><strong>Memory:</strong> all 30B must still sit in VRAM, so it is as big as a dense 30B.</li>
+  <li><strong>Speed:</strong> only ~3B are read per token. Using the formula from section 5, the ceiling is
+  roughly <em>ten times</em> a dense model's. MoE models feel very fast.</li>
+  <li><strong>Quality:</strong> usually between a dense model of its active size and one of its total size.
+  Smart for its speed, but not always as smart as a dense 27B.</li>
+</ul>
+
+<p>That trade-off, fast-and-decent versus slower-and-smarter, is exactly the kind of thing your
+"holistic performance" requirement is about. We may end up using both: MoE for quick jobs, dense for
+harder ones.</p>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="runtimes">9. Runtimes: LM Studio, Ollama, llama.cpp</h2>
+
+<p>A <strong>runtime</strong> is the program that loads a model file and serves it. The important thing
+to know is that both candidates use the same engine underneath:</p>
+
+<div class="flow">  LM Studio  (desktop app: GUI to browse, download, chat, plus a background server)
+  Ollama     (background service: command line, auto-starts, minimal)
+       │
+       └──▶ llama.cpp  (the open-source engine that does the actual maths)
+                 │
+                 ├──▶ Vulkan backend  ─┐
+                 └──▶ ROCm/HIP backend ─┴──▶  RX 7900 XTX</div>
+
+<p>So differences between them come mostly from <em>which version of the engine</em> they bundle,
+<em>which GPU backend</em> they use, and their <em>defaults</em>, not from fundamentally different
+technology. That is why we benchmark both rather than trusting reviews.</p>
+
+<p>Both serve an <strong>OpenAI-compatible API</strong> on <code>localhost</code>. It is the same HTTP
+format OpenAI's API uses, which has become the industry's common language. Offload only ever speaks
+that API, so swapping LM Studio for Ollama, or for something new next year, is a config change.</p>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="amd">10. Your AMD card: Vulkan vs ROCm</h2>
+
+<p>Most local-AI tutorials assume an NVIDIA card and its <strong>CUDA</strong> toolkit. Yours is AMD, so
+some tutorial steps will not match what you see. That is expected, not a mistake on your part.</p>
+
+<ul>
+  <li><strong>ROCm / HIP</strong> is AMD's equivalent of CUDA. Its Windows support has historically lagged
+  Linux and covers some cards better than others.</li>
+  <li><strong>Vulkan</strong> is a cross-vendor graphics and compute API, the same family of tech games use.
+  It works on almost any card and on AMD is often surprisingly competitive.</li>
+</ul>
+
+<div class="card yours">
+<strong>The answer is "it depends on the job", and the runtime matters as much as the backend.</strong>
+Measured overnight on 2026-10-16 with the same model files on every combination (32k context, one
+request at a time):
+<ul>
+  <li><strong>Reading (prompt processing): ROCm under Ollama wins.</strong> It read prompts fastest on
+  every model tested, for example 3,464 tokens/s against 3,175 on Vulkan for Qwen3.6 35B-A3B. Reading is
+  most of the work when the model is summarising your files, so this matters for delegation.</li>
+  <li><strong>Writing (generation): Vulkan wins, and on the biggest model the runtime matters more.</strong>
+  On the two smaller models Vulkan was 10–20% faster, for example 143 against 117 tokens/s on Qwen3.6
+  35B-A3B. On Qwen3.8 27B, LM Studio wrote at 53–63 tokens/s and Ollama at only 38–41 on either backend, so
+  for that model LM Studio on Vulkan is the clear pick. Writing is most of the time for code and long answers.</li>
+  <li><strong>LM Studio's ROCm engine is the one to avoid.</strong> It used 7–13 GB more VRAM than
+  everything else for the same model, filled the card, and then slowed to a crawl on long prompts (313
+  tokens/s reading at 30k, against 2,700–3,200 elsewhere), and on Qwen3.8 27B a request never finished.
+  Ollama's ROCm build does not have this problem, so it is LM Studio's engine, not ROCm itself. Gemma 4 31B
+  confirmed it on 2026-10-16: on LM Studio's ROCm engine it overflowed the card by 2.7 GB into system RAM and
+  ran at a tenth of its speed. The harness now stops any run whose model spills like that within a minute.</li>
+  <li><strong>The best runtime depends on the model.</strong> Gemma 4 26B writes fastest on Ollama with Vulkan
+  (125–151 tokens/s against 115–133 on LM Studio) and reads fastest on Ollama with ROCm (3,000+ tokens/s even at
+  30k). Qwen3.8 27B is the opposite: LM Studio on Vulkan writes 40% faster than Ollama. So the delegation
+  server will pick the runtime per model, which it can, since both speak the same API.</li>
+</ul>
+So your "heavier use" question has a split answer: for reading big files ROCm (in Ollama) is ahead, and for
+writing long code or reasoning Vulkan is ahead. Two copies of a big model will not fit in 24 GB at once,
+so in practice one backend is the default; the gaps are 10–20%, not night and day, so the default is the one
+that suits the commonest job.
+</div>
+
+<div class="card yours">
+<strong>Your iGPU stays out of it.</strong> The small Radeon graphics in your CPU has no memory of its own; it
+borrows system RAM, which is roughly ten times slower than the 7900 XTX's memory. In every test it sat at 0%
+load while the 7900 XTX did the work. Ollama ignores it by default. LM Studio can see it, but did not use it
+for a model that fits in 24 GB. The one case where it might help is a model too big for 24 GB, and that will be
+measured rather than assumed.
+</div>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="connect">11. How it plugs into Claude (or anyone)</h2>
+
+<p>The glue is <strong>MCP, the Model Context Protocol</strong>. It is an open standard for giving an AI
+agent extra tools. Claude Code supports it, and so do many other agents and editors, which is why we chose it
+over anything Claude-specific.</p>
+
+<div class="flow">  You ──▶ Claude Code (cloud brain)
+              │  "summarise Assets/Scripts/*.cs"   ◀── small message, few tokens
+              ▼
+        Offload MCP server  (runs on your PC)
+              │  reads the files itself
+              ▼
+        LM Studio / Ollama  ──▶  RX 7900 XTX
+              │
+              ▼
+        summary ──▶ back to Claude  ◀── short result, few tokens</div>
+
+<p>The saving comes from the middle: the <em>files</em> never pass through Claude, only the
+request and the short result. Claude still decides what to delegate and reviews what comes back.</p>
+
+<p><strong>If you ever switch providers</strong>, the server and the local model stay exactly the same. You
+point the new agent at the same MCP server. The only Claude-specific pieces are small instruction
+files in <code>adapters/</code>.</p>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="watch">12. Watching it work</h2>
+
+<ol>
+  <li>Open <strong>Task Manager → Performance</strong>. You will see two GPUs. Pick the
+  <strong>AMD Radeon RX 7900 XTX</strong> one, not "AMD Radeon(TM) Graphics".</li>
+  <li>Watch <strong>Dedicated GPU memory</strong>. When a model loads, it jumps by roughly the model's
+  file size. If it barely moves, the model is running on the CPU, which is the problem Phase 1 checks for.</li>
+  <li>Switch one of the graphs to <strong>Compute</strong> (click a graph title). It spikes while the model
+  is generating.</li>
+  <li>In LM Studio, the <strong>Developer</strong> tab shows the server log for every request, with
+  tokens/s. Ollama's equivalent is <code>ollama ps</code> in PowerShell, which shows what is loaded and how much is
+  on GPU.</li>
+</ol>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="results">13. Your measured results</h2>
+
+<p>The first full benchmark run, 2026-10-15 to 17. Ten model builds were tested; five were kept. Every
+number below was measured on your PC. The full tables, regenerated after every run, are in
+<code>bench/results/summary.md</code>. Samples are small (12–40 per test), so a few points either way is
+noise; the big gaps are real.</p>
+
+<h3>The five models kept</h3>
+
+<table>
+  <tr><th>Model</th><th>On the card</th><th>Writing speed</th><th>What it is good for</th></tr>
+  <tr><td><strong>Gemma 4 26B</strong> (Google)</td><td>~16 GB</td><td>up to ~150 tokens/s</td>
+      <td><strong>The everyday coder.</strong> 89% of fresh coding problems with thinking off, 94% with it
+      on, in minutes. Weak spot: tool calls (67%).</td></tr>
+  <tr><td><strong>Gemma 4 31B</strong> (Google)</td><td>~22 GB</td><td>33–39 tokens/s</td>
+      <td><strong>The careful one.</strong> Best at almost everything: 100% coding and bug finding with
+      thinking on, 89% on careful extraction, and the best code reviewer. Its cost is speed, a quarter of the 26B's.</td></tr>
+  <tr><td><strong>Qwen3.8 27B</strong> (Alibaba)</td><td>~20 GB</td><td>53–63 tokens/s</td>
+      <td><strong>The second opinion.</strong> 83% coding with thinking off, 100% bug finding, a good reviewer
+      from a different vendor than the Gemmas, and the reviewer with the fewest false alarms.</td></tr>
+  <tr><td><strong>Qwen3.6 35B-A3B</strong> (Alibaba)</td><td>~19 GB</td><td>163–175 tokens/s</td>
+      <td><strong>The fastest, and best at tool calls</strong> (87%). 78% coding. Too quick to call good code
+      broken to be a reviewer.</td></tr>
+  <tr><td><strong>Qwen3.5 9B</strong> (Alibaba)</td><td>~10 GB</td><td>~80 tokens/s</td>
+      <td><strong>Small and light.</strong> Fine for formatting (98%) and simple tool calls (75%), weak at
+      code (44%). The only one that leaves real room for Unity.</td></tr>
+</table>
+
+<p>Ruled out by the two-minute screen, because a model already measured beat them on score, speed and memory
+at once: Nemotron 3.5 Bolt 74B, Muse Glimmer 30B (Meta) and the bigger Q6 copy of Qwen3.8. Two other copies of
+Qwen3.6 tied with the one kept but were bigger and slower to load.</p>
+
+<h3>Writer and reviewer</h3>
+
+<p>Each model reviewed 232 solutions the models had written, without being told whether a bug was there. A
+reviewer is only useful if it catches bugs <em>and</em> leaves good code alone, because a false alarm sends the
+writer off to "fix" working code.</p>
+
+<table>
+  <tr><th>Reviewer</th><th>Real bugs caught</th><th>Good code wrongly failed</th><th>Same, with the improved prompt</th></tr>
+  <tr><td><strong>Gemma 4 31B</strong></td><td>91%</td><td>21%</td><td>87% caught, 16% wrongly failed</td></tr>
+  <tr><td><strong>Qwen3.8 27B</strong></td><td>83%</td><td>22%</td><td>81% caught, <strong>11%</strong> wrongly failed</td></tr>
+  <tr><td>Gemma 4 26B</td><td>96%</td><td>41%</td><td>98% caught, 33% wrongly failed</td></tr>
+  <tr><td>Qwen3.6 35B-A3B</td><td>94%</td><td>47%</td><td>87% caught, 42% wrongly failed</td></tr>
+  <tr><td>Qwen3.5 9B</td><td>89%</td><td>79%</td><td>92% caught, 68% wrongly failed</td></tr>
+</table>
+
+<p>The improved prompt (2026-10-18) adds one rule: judge the code only against its specification, and a
+claimed bug must come with an input the specification covers. Most false alarms had been complaints about
+things the specification never asked for, such as empty input. Every reviewer raised fewer false alarms,
+with bugs caught about the same (a few points either way is noise with 53 real bugs). Qwen3.8 is now the
+most trustworthy reviewer.</p>
+
+<p>So the first trial pairs <strong>Gemma 26B writing with Gemma 31B reviewing</strong>, tests first. A second
+model also beat self-review where it could be measured (on Qwen3.8's code, 62% of bugs caught by Gemma 31B
+against 50% by Qwen3.8 itself), but that rests on only eight bugs.</p>
+
+<h3>What thinking is worth</h3>
+
+<div class="card yours">
+<strong>Thinking matters for reading, hardly at all for coding.</strong> Pulling facts out of a long document
+went from 41% to 89% on Gemma 31B and from 38% to 70% on Qwen3.8 when they could think, but every model was
+under 45% without it. On coding, the best models were already 83–94% without thinking, and thinking cost 4 to
+60 times the time. So the delegation server needs two modes: <strong>fast</strong> (thinking off) for drafts,
+code and summaries, and <strong>careful</strong> (thinking on) for extraction that has to be right, at about
+four minutes a document on Gemma 31B.
+</div>
+
+<h3>Ideas tested and dropped</h3>
+
+<ul>
+  <li><strong>Writing terse code to save tokens</strong> (no comments, minified): every model broke more
+  code the harder it compressed. Qwen3.8 fell from 83% to 56%, the 9B from 44% to 6%. Rejected.</li>
+  <li><strong>Stripping comments from code a model reviews</strong>: with the improved review prompt, the
+  reviewers raised more false alarms (Gemma 26B 33% to 42%) and caught slightly fewer bugs, and were no
+  faster. The comments tell the reviewer what the code is meant to do, so reviews get the code as written.</li>
+  <li><strong>Bigger, more precise copies of a model</strong> (Q6 instead of 4-bit): no measurable gain,
+  slower and larger. 4-bit is the right size here.</li>
+  <li><strong>MTP speculative decoding</strong> (the model guesses several words at once): +24% writing speed
+  on the large Qwen3.6 copy, but the smaller copy was already as fast without it.</li>
+</ul>
+
+<h3>Routing, first version</h3>
+
+<table>
+  <tr><th>Job</th><th>Where it should go</th><th>Evidence</th></tr>
+  <tr><td>Reformat, convert, follow a template</td><td>Local, any model</td><td>Instruction following 95–98% on all five</td></tr>
+  <tr><td>Routine code to a clear spec</td><td>Local: Gemma 26B writes, tests check, Gemma 31B reviews, cloud signs off</td><td>89–94% of fresh problems pass hidden tests</td></tr>
+  <tr><td>Spot a bug in a function</td><td>Local: Gemma 31B or Qwen3.8</td><td>100% named the planted line; ~21% false alarms on real code</td></tr>
+  <tr><td>Tool calls (structured actions)</td><td>Local: Qwen3.6</td><td>Tool calling 87%</td></tr>
+  <tr><td>Pull facts from long documents</td><td>Local careful mode (Gemma 31B, thinking on), or cloud when it is urgent</td><td>89% with thinking, under 45% without</td></tr>
+  <tr><td>Hard reasoning, design, planning, checking facts</td><td>Cloud</td><td>Graduate science questions 63–77% locally against ~91% for frontier models</td></tr>
+</table>
+
+<div class="card yours">
+<strong>The "lost requests" were a hidden 10-minute limit, not a broken runtime.</strong> On long thinking-on
+runs, some answers never came back, on every model. It turned out the test framework quietly cuts any request
+at 10 minutes, below the limits we had set. Sent directly, the same 16 long requests all came back from LM
+Studio, the slowest after 16 minutes. The limit is now 20 minutes. Two results were marked down by it and will
+be re-run: Qwen3.8's thinking-on coding (72%, but 87% of the answers that arrived) and its science-question
+score. The lesson for the delegation server: careful-mode answers can take over 10 minutes, so its own limit
+has to allow for that.
+</div>
+
+<!-- ───────────────────────────────────────── -->
+<h2 id="glossary">14. Glossary</h2>
+<table>
+  <tr><td><strong>Token</strong></td><td>The unit models read and write, about ¾ of an English word.</td></tr>
+  <tr><td><strong>Parameters / weights</strong></td><td>The model's learned numbers. "27B" = 27 billion of them.</td></tr>
+  <tr><td><strong>VRAM</strong></td><td>The graphics card's own memory. Your 7900 XTX has 24 GB.</td></tr>
+  <tr><td><strong>GGUF</strong></td><td>The model file format llama.cpp-based runtimes load.</td></tr>
+  <tr><td><strong>Quantization</strong></td><td>Storing weights in fewer bits to save memory (Q4, Q8, …).</td></tr>
+  <tr><td><strong>Context window</strong></td><td>How much text the model can consider at once.</td></tr>
+  <tr><td><strong>KV cache</strong></td><td>The model's working memory of the context so far. It grows with context and lives in VRAM.</td></tr>
+  <tr><td><strong>Prefill / prompt processing</strong></td><td>Reading the input. Parallel and fast.</td></tr>
+  <tr><td><strong>Decode / generation</strong></td><td>Writing the output one token at a time. Limited by memory bandwidth.</td></tr>
+  <tr><td><strong>TTFT</strong></td><td>Time to first token: the wait before output starts.</td></tr>
+  <tr><td><strong>MoE</strong></td><td>Mixture-of-experts. A big model that only uses part of itself per token.</td></tr>
+  <tr><td><strong>Offloading (layers)</strong></td><td>Putting part of a model in system RAM and running it on the CPU when VRAM is full. Slow.</td></tr>
+  <tr><td><strong>Runtime</strong></td><td>The program that loads and serves a model: LM Studio, Ollama, llama.cpp.</td></tr>
+  <tr><td><strong>Vulkan / ROCm</strong></td><td>Two ways for the runtime to drive your AMD GPU.</td></tr>
+  <tr><td><strong>OpenAI-compatible API</strong></td><td>The common HTTP format local runtimes serve, which keeps Offload provider-neutral.</td></tr>
+  <tr><td><strong>MCP</strong></td><td>Model Context Protocol, the open standard for giving AI agents tools. It is how Claude reaches Offload.</td></tr>
+</table>
+
+<footer>Part of the Offload project, <code>docs/for-logan/index.html</code>. Concepts are written up front;
+numbers marked <em>pending</em> are replaced with measurements from your machine as the project progresses.
+Figures not yet measured are estimates and labelled as such.</footer>
+
+</main>
+</body>
+</html>

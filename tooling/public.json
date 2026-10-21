@@ -1,0 +1,28 @@
+{
+  "source": "main",
+  "branch": "public",
+  "exclude": [
+    "docs/HANDOFF.md",
+    "tooling/start-rc.ps1",
+    "tooling/install-rc-autostart.ps1"
+  ],
+  "replace": {
+    "docs/HANDOFF.md": "tooling/public/HANDOFF.md"
+  },
+  "forbidden": [
+    "[A-Za-z]:(?:\\\\|/)+Users(?:\\\\|/)+(?!dev\\b|Public\\b)\\w+",
+    "/home/\\w+",
+    "[\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)*\\.[A-Za-z]{2,}\\b",
+    "\\bsk-[A-Za-z0-9_-]{20,}",
+    "\\bgh[pousr]_[A-Za-z0-9]{20,}",
+    "\\bhf_[A-Za-z0-9]{20,}",
+    "\\bAKIA[0-9A-Z]{16}\\b",
+    "-----BEGIN [A-Z ]*PRIVATE KEY-----"
+  ],
+  "allow": [
+    "noreply@anthropic\\.com",
+    "@users\\.noreply\\.github\\.com",
+    "git@github\\.com",
+    "^/home/u$"
+  ]
+}

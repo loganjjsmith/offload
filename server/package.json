@@ -1,0 +1,15 @@
+﻿{
+  "name": "offload-server",
+  "version": "0.1.0",
+  "description": "Offload delegation server: MCP tools that hand work to a local model",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.ts",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^4.6.7"
+  }
+}

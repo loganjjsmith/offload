@@ -1,0 +1,19 @@
+# Re-runs of the thinking-on results spoiled by Inspect's 600 s HTTP timeout (fixed 2026-10-17):
+# answers that needed more than 10 minutes were cut, retried and scored as lost.
+# About 6-8 hours in total; run overnight.
+quality qwen3.5-9b-q8 lmstudio vulkan --only extraction_fresh --label timeoutfix
+quality gemma4-26b-a4b-qat lmstudio vulkan --only extraction_fresh --label timeoutfix
+quality qwen3.8-27b-q4xl lmstudio vulkan --only coding_fresh --label timeoutfix
+quality qwen3.8-27b-q4xl lmstudio vulkan --only gpqa_diamond --label timeoutfix
+
+# Extraction split into model-made rows and code-made answers, thinking off, on all five kept models
+quality gemma4-26b-a4b-qat lmstudio vulkan --only extraction_rows_nothink
+quality qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --only extraction_rows_nothink
+quality qwen3.5-9b-q8 lmstudio vulkan --only extraction_rows_nothink
+quality qwen3.8-27b-q4xl lmstudio vulkan --only extraction_rows_nothink
+quality gemma4-31b-qat lmstudio vulkan --only extraction_rows_nothink
+
+# Reading terse: the two best reviewers on the same 232 solutions with comments stripped
+# Paused 2026-10-17 17:20, resumed 2026-10-18 17:50
+quality gemma4-31b-qat lmstudio vulkan --only review_fresh_terse_nothink
+quality qwen3.8-27b-q4xl lmstudio vulkan --only review_fresh_terse_nothink

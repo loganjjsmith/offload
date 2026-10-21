@@ -1,0 +1,19 @@
+{
+  "endpoint": "http://127.0.0.1:1234/v1",
+  "runtime": "lmstudio",
+  "lmsCli": "lms",
+  "idleUnloadSeconds": 900,
+  "roles": {
+    "fast": { "model": "gemma-4-26b-a4b", "thinking": false, "contextLength": 32768 },
+    "careful": { "model": "gemma-4-31b", "thinking": true, "contextLength": 32768 }
+  },
+  "requestTimeoutSeconds": 1800,
+  "maxAnswerTokens": 4096,
+  "chunkChars": 60000,
+  "extractChunkChars": 12000,
+  "readRoots": [
+    ".."
+  ],
+  "logFile": "logs/calls.jsonl",
+  "tripwire": { "window": 10, "maxBadShare": 0.3 }
+}

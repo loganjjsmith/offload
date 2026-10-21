@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "offload": {
+      "command": "node",
+      "args": ["server/src/index.ts"]
+    }
+  }
+}

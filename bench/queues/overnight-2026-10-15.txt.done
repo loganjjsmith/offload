@@ -1,0 +1,71 @@
+quality probe-qwen3-8b lmstudio vulkan --only ifeval math500 --limit 2 --max-tokens 2048 --label smoke
+speed probe-qwen3-8b ollama rocm
+speed probe-qwen3-8b ollama vulkan
+speed qwen3.5-9b-q8 lmstudio vulkan
+speed qwen3.5-9b-q8 lmstudio rocm
+speed qwen3.5-9b-q8 ollama rocm
+speed qwen3.5-9b-q8 ollama vulkan
+quality qwen3.5-9b-q8 lmstudio vulkan
+quality qwen3.5-9b-q8 lmstudio vulkan --only coding_fresh_nothink bugfind_fresh_nothink extraction_fresh_nothink
+speed qwen3.6-35b-a3b-q4xl lmstudio vulkan
+speed qwen3.6-35b-a3b-q4xl lmstudio rocm
+speed qwen3.6-35b-a3b-q4xl ollama rocm
+speed qwen3.6-35b-a3b-q4xl ollama vulkan
+quality qwen3.6-35b-a3b-q4xl lmstudio vulkan --only coding_fresh_nothink bugfind_fresh_nothink extraction_fresh_nothink coding_fresh bugfind_fresh extraction_fresh
+quality qwen3.6-35b-a3b-q4xl lmstudio vulkan --only ifeval bfcl gpqa_diamond
+speed qwen3.8-27b-q4xl lmstudio vulkan
+speed qwen3.8-27b-q4xl lmstudio rocm
+speed qwen3.8-27b-q4xl ollama rocm
+speed qwen3.8-27b-q4xl ollama vulkan
+speed qwen3.8-27b-q4xl lmstudio vulkan --label mtp --load-arg=--speculative-draft-mtp
+quality qwen3.8-27b-q4xl lmstudio vulkan --only coding_fresh_nothink bugfind_fresh_nothink extraction_fresh_nothink coding_fresh bugfind_fresh extraction_fresh
+quality qwen3.8-27b-q4xl lmstudio vulkan --only ifeval bfcl gpqa_diamond
+quality qwen3.8-27b-q4xl lmstudio vulkan --only bugfind_fresh_nothink extraction_fresh_nothink bugfind_fresh extraction_fresh
+speed gemma4-26b-a4b-qat lmstudio vulkan
+speed gemma4-26b-a4b-qat lmstudio rocm
+speed gemma4-26b-a4b-qat ollama rocm
+speed gemma4-26b-a4b-qat ollama vulkan
+speed gemma4-26b-a4b-qat lmstudio vulkan --label mtp --load-arg=--speculative-draft-mtp
+quality gemma4-26b-a4b-qat lmstudio vulkan --gated --only bugfind_fresh_nothink extraction_fresh_nothink bugfind_fresh extraction_fresh
+quality gemma4-26b-a4b-qat lmstudio vulkan --gated --only ifeval bfcl gpqa_diamond
+speed qwen3.6-35b-a3b-mtp-q4xl lmstudio vulkan --label mtp --load-arg=--speculative-draft-mtp
+speed qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan
+speed qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --label mtp --load-arg=--speculative-draft-mtp
+quality qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --only bugfind_fresh_nothink extraction_fresh_nothink
+speed nemotron3.5-bolt-74b-a9b-24gb lmstudio vulkan
+speed nemotron3.5-bolt-74b-a9b-24gb lmstudio rocm
+quality nemotron3.5-bolt-74b-a9b-24gb lmstudio vulkan --gated --only bugfind_fresh_nothink extraction_fresh_nothink bugfind_fresh extraction_fresh
+quality nemotron3.5-bolt-74b-a9b-24gb lmstudio vulkan --gated --only ifeval bfcl gpqa_diamond
+speed gemma4-31b-qat lmstudio vulkan
+speed gemma4-31b-qat lmstudio rocm
+speed gemma4-31b-qat ollama rocm
+speed gemma4-31b-qat ollama vulkan
+quality gemma4-31b-qat lmstudio vulkan --gated --only bugfind_fresh_nothink extraction_fresh_nothink bugfind_fresh extraction_fresh
+quality gemma4-31b-qat lmstudio vulkan --gated --only ifeval bfcl
+speed qwen3.8-27b-q6 lmstudio vulkan
+quality qwen3.8-27b-q6 lmstudio vulkan --gated --only bugfind_fresh_nothink extraction_fresh_nothink bugfind_fresh extraction_fresh
+quality qwen3.8-27b-q6 lmstudio vulkan --gated --only ifeval bfcl
+quality qwen3.5-9b-q8 lmstudio vulkan --only extraction_fresh
+quality qwen3.6-35b-a3b-q4xl lmstudio vulkan --only extraction_fresh
+quality qwen3.8-27b-q4xl lmstudio vulkan --only coding_fresh_nothink coding_fresh
+quality gemma4-26b-a4b-qat lmstudio vulkan --gated --only coding_fresh_nothink coding_fresh
+quality gemma4-31b-qat lmstudio vulkan --gated --only coding_fresh_nothink coding_fresh
+quality qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --only coding_fresh_nothink
+quality qwen3.6-35b-a3b-mtp-q4xl lmstudio vulkan --only coding_fresh_nothink bugfind_fresh_nothink extraction_fresh_nothink
+quality qwen3.8-27b-q4xl lmstudio vulkan --only gpqa_diamond
+quality qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --only coding_fresh_terse_nothink
+quality qwen3.8-27b-q4xl lmstudio vulkan --only coding_fresh_terse_nothink
+quality qwen3.5-9b-q8 lmstudio vulkan --only coding_fresh_terse_nothink
+speed gemma4-26b-a4b-qat lmstudio vulkan --label rerun
+speed muse-glimmer-30b-q4xl lmstudio vulkan
+speed muse-glimmer-30b-q4xl ollama rocm
+quality muse-glimmer-30b-q4xl lmstudio vulkan --gated --only bugfind_fresh_nothink extraction_fresh_nothink bugfind_fresh extraction_fresh
+quality muse-glimmer-30b-q4xl lmstudio vulkan --gated --only ifeval bfcl
+quality muse-glimmer-30b-q4xl lmstudio vulkan --gated --only coding_fresh_nothink coding_fresh
+quality qwen3.5-9b-q8 lmstudio vulkan --gated --only review_fresh_nothink
+quality qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --gated --only review_fresh_nothink
+quality qwen3.8-27b-q4xl lmstudio vulkan --gated --only review_fresh_nothink
+quality gemma4-26b-a4b-qat lmstudio vulkan --gated --only review_fresh_nothink
+quality gemma4-31b-qat lmstudio vulkan --gated --only review_fresh_nothink
+quality qwen3.8-27b-q4xl lmstudio vulkan --only coding_fresh --label spillwatch
+quality qwen3.5-9b-q8 lmstudio vulkan --only extraction_fresh --label spillwatch
