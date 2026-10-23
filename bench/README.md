@@ -66,6 +66,11 @@ model's entry from `config/models.yaml`.
 ## When a new model or runtime version comes out
 
 1. Download the GGUF into LM Studio's models folder and add an entry to `config/models.yaml`.
+   If it fits on the card, open its settings in LM Studio (My Models, the gear) and switch off
+   "Try mmap()" and "Keep Model in Memory". With memory mapping, a loaded model keeps its whole file in
+   system RAM as well as on the card: 14–16 GB of the PC's 32, measured 2026-10-22, with no speed gain.
+   `lms load` has no option for it, so it lives in LM Studio's per-model defaults, and the harness warns
+   at load when a model still memory-maps.
 2. Run its speed matrix and the quick quality screen (`--tier quick`).
 3. If it beats the current pick for its tier, run `--tier full` and update the routing.
 
@@ -88,6 +93,6 @@ current picks are re-run under it.
 | `offload_bench/speed.py`, `quality.py` | The two suites |
 | `offload_bench/gpu.py` | Per-adapter GPU load and VRAM from Windows performance counters |
 | `tasks/` | The fresh task sets and the Docker sandbox that runs model-written code |
-| `tools/` | One-off measurements: `token_audit.py` counts which tool output fills the cloud agent's context, from Claude Code transcripts; `terse_tokens.py` measures terse code |
+| `tools/` | One-off measurements: `token_audit.py` counts which tool output fills the cloud agent's context, from Claude Code transcripts; `terse_tokens.py` measures terse code; `review_pairs.py` shows, for each pair of reviewers, the bugs both miss and the clean code either flags (needs the review runs' Inspect logs) |
 | `queues/` | Queue files for unattended runs, and their `.done` records |
 | `results/` | Measured results (committed) |

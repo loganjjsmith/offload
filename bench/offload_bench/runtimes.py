@@ -44,6 +44,7 @@ class LMStudio:
     name = "lmstudio"
     # A model spilling into system RAM is a failed fit here, and the suites stop it.
     offloads_to_ram = False
+    max_parallel = None
 
     def __init__(self):
         self.cfg = config.load("runtimes")["lmstudio"]
@@ -66,6 +67,15 @@ class LMStudio:
             return match["modelKey"]
         return f"{match['modelKey']}@{match['quantization']['name'].lower()}"
 
+    def memory_maps(self, file):
+        """True unless the model's saved LM Studio defaults switch off memory-mapped loading, which is on by default."""
+        path = config.expand(self.cfg["model_defaults_dir"]) / (file + ".json")
+        try:
+            fields = json.loads(path.read_text(encoding="utf-8"))["load"]["fields"]
+        except (OSError, ValueError, KeyError):
+            return True
+        return not any(f.get("key") == "llm.load.llama.tryMmap" and f.get("value") is False for f in fields)
+
     def prepare(self, model, backend, context_length, parallel=1, extra_args=()):
         free_default_ollama()
         self._lms("server", "start")
@@ -79,6 +89,9 @@ class LMStudio:
                     raise
                 time.sleep(20)
         key = self.model_key(model["file"])
+        if self.memory_maps(model["file"]):
+            print(f"warning: LM Studio will memory-map {model['file']}, which keeps the whole file in system RAM "
+                  "while it is loaded; switch off 'Try mmap()' in its model settings (bench/README.md)", flush=True)
         # context_length is per request; llama.cpp shares one context across parallel slots.
         start = time.perf_counter()
         self._lms("load", key, "--gpu", "max", "--context-length", str(context_length * parallel),
@@ -135,6 +148,7 @@ def remove_model(model):
 class Ollama:
     name = "ollama"
     offloads_to_ram = False
+    max_parallel = None
 
     def __init__(self):
         self.cfg = config.load("runtimes")["ollama"]
@@ -207,6 +221,9 @@ class Strata:
     name = "strata"
     # System RAM holding experts is the design, so the spill guards only record it.
     offloads_to_ram = True
+    # Each parallel slot's session takes VRAM from the expert cache, so more of each answer is read from
+    # the SSD: four slots wrote 25-40 tok/s in total on 2026-10-21, one request alone 80-96.
+    max_parallel = 1
 
     def __init__(self):
         self.cfg = config.load("runtimes")["strata"]

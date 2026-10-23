@@ -127,6 +127,23 @@ SSD at 7–8 tok/s), fitting the model needs 2–3-bit quantization, the project
 are the author's. Needs Logan's OK for the install and a ~70 GB download, then the same speed matrix and
 gated quality screen as every other model.
 
+*Result (2026-10-21):* the size that fits 32 GB is the Coder, which has half the experts pruned and is stored at
+about 3.5 bits per weight. It writes at ~85 tok/s, one request at a time. Parallel slots take VRAM from its expert
+cache, so four requests at once wrote 25–40 tok/s in total. On the quick screen it was the best careful
+extractor measured here (95 ±3, thinking on, in a third of Gemma 31B's time) and named the planted bug every
+time. It was weak at code: 61% with thinking on or off, from 6/6 in Python but 2/6 in C# and 3/6 in TypeScript
+both times, the C# failures mostly code that does not compile. It needs the whole card and most of the RAM. It is a
+candidate for careful extraction only. Strata's own pick for this PC (56 GB of RAM plus VRAM, 51 after its 5 GB
+system reserve) is the full model at
+IQ3_XXS (76 GB download); Swift 1.5 IQ2_XS (68 GB), a fine-tune that thinks less, is the other option. Either
+needs Logan's OK, and probably room made by removing the Coder (86 GB with its pack).
+
+*Module-sized Python (2026-10-22):* on eight fresh modules scored by 233 hidden tests (`modules_fresh`, three
+runs each), the Coder passed 70 ±8 with thinking off and 87 ±8 with it on, against Gemma 4 31B's 96 ±2 and 96 ±1
+in a quarter of the time, so it is not the coder here even in Python. Gemma 4 26B passed 74 ±8 with thinking off,
+well below its 89% on short functions: module-sized work goes to the 31B. Logan's extra 100 GB of model space
+(350 GB in all) was given for this testing, with long-term storage to be settled when testing ends.
+
 **Output:** a results table in `bench/results/`, and a routing decision for each task type:
 local, local with cloud review, or cloud only.
 
@@ -348,10 +365,46 @@ saving that grows with the size of the code. Lessons for the coordinator:
 - each model swap costs ~15 s, so review in batches
 - write every file from code with explicit UTF-8; a PowerShell round-trip corrupted `…` during this trial
 
+**Trial 2 result (2026-10-22): done in one round, `bench/tools/review_pairs.py`, 14 tests passing.** The item:
+for every pair of reviewers, how many real bugs both miss and how many clean solutions either flags, from the
+review logs, which the coordinator needs to set how many clean reviews make a change cloud-ready. Writer Gemma 4
+31B (the code-loop model since the module test), thinking off: 163 lines in 99 s (4.3k prompt, 1.7k output
+tokens, ~17 tok/s with other work running on the PC). All tests passed on the first answer, and its table matches
+the published per-reviewer numbers. Reviewer Qwen3.8 27B, review prompt version 2: pass, no issues, 59 s. The
+cloud sign-off found no bug and made style edits only (grade `fixed`); output identical before and after.
+Model loads took 35 and 41 s. Cloud tokens: the spec and 14 tests were most of the cloud's work, about as much
+as writing the module directly; the saving still depends on automating the rounds and on larger items.
+Lessons for the coordinator:
+- a precise spec with exact output examples in the tests was enough for a first-round pass; spec quality is
+  where the cloud tokens are worth spending
+- load with `--parallel 1`: LM Studio's default of 4 slots spilled 1.1 GB of VRAM into RAM (0.09 GB with one)
+- with LM Studio's default memory-mapped load, a loaded model keeps 14–16 GB of its file resident in system
+  RAM, leaving ~0.7 GB for everything else. With mmap off (a per-model LM Studio default) loads took 12–16 s
+  instead of 13–31, RAM stayed 14–16 GB free and speed was unchanged, across a three-model swap cycle
+  (HANDOFF 2026-10-22 afternoon). Rule: models that fit on the card load with mmap off
+
+**What two reviews buy** (review prompt version 2, 53 real bugs, 179 clean solutions; `review_pairs.py`):
+| Reviewers | Bugs missed | If independent | False alarms |
+|---|---|---|---|
+| Gemma 26B alone | 1 (2%) | | 33% |
+| Gemma 31B alone | 7 (13%) | | 16% |
+| Qwen3.8 alone | 10 (19%) | | 11% |
+| Gemma 31B + Qwen3.8 | 5 (9%) | 1.3 | 21% |
+| Gemma 26B + Qwen3.6 35B-A3B | 0 | 0.1 | 54% |
+
+The two most careful reviewers miss largely the same bugs (5 missed by both where independence predicts 1.3),
+so a second clean review from a different vendor adds less than the single rates suggest. Because the
+coordinator makes every claimed bug prove itself with a failing test, a false alarm costs one round rather than
+broken code, which favours a high-catch reviewer such as Gemma 26B (and it is the fastest). Not yet measured:
+whether a reviewer can write the failing test its claim needs. The counts are small; one bug is 2 points.
+
 **Loop coordinator** (Logan's idea, 2026-10-16). A plain script, not a model, runs write → check →
 review → fix rounds on this machine until the change is cloud-ready, so the cloud agent sees only
 finished work: the spec, the final diff, the test results and a short review summary, never the
-rounds in between.
+rounds in between. **The specification to build from is `docs/COORDINATOR.md`** (2026-10-22); the bullets
+below are the ideas it grew from. **Built 2026-10-22** (`server/src/coordinate.ts`): on four module-sized tasks,
+three were cloud-ready in 1.6–4.5 minutes, one with a reviewer-proved bug the tests missed; one stopped on a
+test that never showed the writer the wrong value (COORDINATOR.md, "First real runs").
 - **Cloud-ready** means the tests pass and a set number of clean reviews in a row, from different
   reviewers. The number is set from the measured miss rates: if a reviewer misses 40% of real bugs,
   one clean review is weak evidence and two from different models are stronger.

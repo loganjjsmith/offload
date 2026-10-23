@@ -1,0 +1,7 @@
+# Review with proof (the loop coordinator's false-alarm filter): each failed verdict must come with a test,
+# run against the code and the reference. Fast high-catch reviewer first, then the two careful ones, then
+# Qwen3.6. Docker must be running; models load with mmap off (2026-10-22).
+quality gemma4-26b-a4b-qat lmstudio vulkan --only review_proof_nothink
+quality qwen3.8-27b-q4xl lmstudio vulkan --only review_proof_nothink
+quality gemma4-31b-qat lmstudio vulkan --only review_proof_nothink
+quality qwen3.6-35b-a3b-mtp-iq4xs lmstudio vulkan --only review_proof_nothink

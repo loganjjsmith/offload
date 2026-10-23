@@ -5,6 +5,9 @@ lmstudio:
   cli: ~/.lmstudio/bin/lms.exe
   base_url: http://127.0.0.1:1234/v1
   models_dir: ~/.lmstudio/models
+  # Per-model load defaults saved by LM Studio's model settings. Every model that fits on the card should
+  # have "Try mmap()" off there: a memory-mapped model keeps its whole file in system RAM while loaded.
+  model_defaults_dir: ~/.lmstudio/.internal/user-concrete-model-default-config
   # A model nobody has used for this long is unloaded by LM Studio itself, so a run that dies
   # before its teardown does not leave the GPU loaded.
   idle_unload_seconds: 900

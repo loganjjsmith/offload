@@ -2,7 +2,7 @@
 
   speed   <model> <runtime> <backend> [--label L] [--load-arg=ARG ...]
   matrix  <model> [<model> ...]      speed suite on every runtime x backend
-  quality <model> <runtime> <backend> [--tier quick|full] [--only TASK ...]
+  quality <model> <runtime> <backend> [--tier quick|full] [--only TASK ...] [--resume LOG ...]
   queue   <file>                     run the commands in a queue file, one per line
   report                             rebuild results/summary.md
   remove  <model>                    delete a model from LM Studio and Ollama together
@@ -47,6 +47,8 @@ def main():
     q.add_argument("--gated", action="store_true",
                    help="run suite.yaml's screen first and stop if an already-measured model dominates this one")
     q.add_argument("--label")
+    q.add_argument("--resume", nargs="+", metavar="LOG",
+                   help="unfinished Inspect logs of this model to continue, keeping their finished samples")
 
     args = parser.parse_args()
     if args.command == "remove":
@@ -60,7 +62,7 @@ def main():
         queue.run(args.file)
     elif args.command == "quality":
         quality.run(args.model, args.runtime, args.backend, args.tier, args.only, args.label,
-                    args.limit, args.max_tokens, args.gated)
+                    args.limit, args.max_tokens, args.gated, args.resume)
     elif args.command == "speed":
         print(json.dumps(speed.run(args.model, args.runtime, args.backend, args.load_arg, args.label), indent=2))
     elif args.command == "matrix":

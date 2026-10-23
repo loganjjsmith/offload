@@ -1,0 +1,11 @@
+quality qwen3.8-flash-next-coder-iq1m strata hip --only extraction_rows_nothink --label strata-0.1.47-lowmem --resume raw/inspect/2026-10-21T22-23-20-00-00_extraction-rows_kzFHaCRLyvKzdt9siMkAD6.eval
+quality qwen3.8-flash-next-coder-iq1m strata hip --only coding_fresh_nothink --label strata-0.1.47-lowmem
+quality qwen3.8-flash-next-coder-iq1m strata hip --only coding_fresh_terse_nothink --label strata-0.1.47-lowmem
+quality qwen3.8-flash-next-coder-iq1m strata hip --only coding_fresh --label strata-0.1.47-lowmem
+quality qwen3.8-flash-next-coder-iq1m strata hip --only bugfind_fresh --label strata-0.1.47-lowmem
+quality qwen3.8-flash-next-coder-iq1m strata hip --only extraction_fresh --label strata-0.1.47-lowmem
+quality qwen3.8-flash-next-coder-iq1m strata hip --only gpqa_diamond --label strata-0.1.47-lowmem --resume raw/inspect/2026-10-21T17-29-45-00-00_gpqa-diamond_S4U6ix6CLTYUduHojhm7ah.eval
+quality qwen3.8-flash-next-coder-iq1m strata hip --only mmlu_pro --label strata-0.1.47-lowmem
+quality qwen3.8-flash-next-coder-iq1m strata hip --only ifeval --label strata-0.1.47-lowmem
+quality qwen3.8-flash-next-coder-iq1m strata hip --only bfcl --label strata-0.1.47-lowmem
+quality qwen3.8-flash-next-coder-iq1m strata hip --only math500 --label strata-0.1.47-lowmem

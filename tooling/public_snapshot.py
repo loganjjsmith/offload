@@ -1,4 +1,4 @@
-"""Builds the public branch: a sanitised snapshot of the private branch, with history of its own.
+"""Builds the public snapshot: a sanitised copy of the private branch, with history of its own.
 
 Only committed files are used, never the working tree, so untracked and ignored files cannot leak. The
 snapshot is built in a temporary git index from the source branch's latest commit: files listed under
@@ -13,8 +13,10 @@ Extra private patterns, such as a real name or address, go in tooling/public.loc
 as {"forbidden": [...]}, so the patterns themselves are never published.
 
 Usage, from the project root:
+  python tooling/public_snapshot.py --export DIR  build, scan and write the files into the public repository
+                                                  at DIR, which is then committed and pushed from there
   python tooling/public_snapshot.py --dry-run     build and scan, change nothing
-  python tooling/public_snapshot.py               build, scan and commit to the public branch
+  python tooling/public_snapshot.py               build, scan and commit to the public branch (older route)
   python tooling/public_snapshot.py -m "Text"     the same, with your own commit message
 """
 import argparse
@@ -107,16 +109,43 @@ def default_message(source, previous_source):
     return f"{head}\n\nChanges since the last snapshot:\n" + "\n".join(subjects)
 
 
+def export(tree, files, target):
+    """Writes the snapshot's files into another repository's working folder. Files that repository tracks
+    and the snapshot no longer has are deleted; its history and untracked files are left alone."""
+    target = Path(target)
+    if not (target / ".git").exists():
+        sys.exit(f"{target} is not a git repository")
+    tracked = subprocess.run(["git", "ls-files", "-z"], cwd=target, capture_output=True, check=True).stdout
+    for old in set(tracked.decode("utf-8").split("\0")) - set(files) - {""}:
+        (target / old).unlink(missing_ok=True)
+    for path in files:
+        dest = target / path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(git("cat-file", "blob", f"{tree}:{path}"))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--dry-run", action="store_true", help="build and scan only; change nothing")
     parser.add_argument("-m", "--message", help="commit message (default: a dated list of the changes)")
+    parser.add_argument("--export", metavar="DIR",
+                        help="write the scanned snapshot into the public repository at DIR instead of the branch")
     args = parser.parse_args()
 
     settings = load_settings()
     source = git_text("rev-parse", "--verify", settings["source"])
-    tip, previous_source = last_snapshot(settings["branch"])
     tree, files = build_tree(source, settings)
+    if args.export:
+        leaks = scan(tree, files, "", settings)
+        if leaks:
+            print(f"Stopped: {len(leaks)} forbidden match(es):\n" + "\n".join(f"  {leak}" for leak in leaks))
+            sys.exit(1)
+        if not args.dry_run:
+            export(tree, files, args.export)
+        print(f"Source {settings['source']} at {source[:12]}: {len(files)} files, scan clean; "
+              + ("dry run, nothing written." if args.dry_run else f"written to {args.export}. Nothing was committed."))
+        return
+    tip, previous_source = last_snapshot(settings["branch"])
     message = (args.message or default_message(source, previous_source)) + f"\n\n{SOURCE_TRAILER} {source[:12]}\n"
 
     print(f"Source {settings['source']} at {source[:12]}: {len(files)} files after excluding "

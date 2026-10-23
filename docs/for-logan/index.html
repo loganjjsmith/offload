@@ -162,6 +162,16 @@ closed may spill over when it is open. Phase 2 measures exactly this, because bo
 actually run together.
 </div>
 
+<div class="card yours">
+<strong>A model on the card should not also sit in your RAM (measured 2026-10-22).</strong> By default LM Studio
+"maps" the model file into memory to load it, and Windows then keeps the whole file in RAM for as long as the
+model is loaded, although the card already has its own copy. A loaded model left you 1–2 GB of your 32 GB.
+With mapping switched off ("Try mmap()" in each model's settings), the model is read once, copied to the card
+and released: 14–16 GB stay free, loads take 12–16 s instead of up to 31, and the model runs at exactly the
+same speed. All five models are set this way now. The one case where mapping might still help is a model too
+big for the card, which has not been tested.
+</div>
+
 <!-- ───────────────────────────────────────── -->
 <h2 id="quant">4. Quantization: shrinking a model</h2>
 
@@ -440,6 +450,33 @@ most trustworthy reviewer.</p>
 model also beat self-review where it could be measured (on Qwen3.8's code, 62% of bugs caught by Gemma 31B
 against 50% by Qwen3.8 itself), but that rests on only eight bugs.</p>
 
+<p><strong>Two reviewers are less than twice as good (2026-10-22).</strong> If two reviewers made independent
+mistakes, a bug would slip past both only rarely: Gemma 31B misses 7 of the 53 real bugs and Qwen3.8 misses 10,
+so together about 1. In fact both missed 5. The bugs that fool one careful model tend to fool the other too.
+What helps more is a rule the planned loop already has: a reviewer that claims a bug must show it with a test
+that fails. A false alarm then costs one wasted round, not broken code, so a reviewer that catches nearly
+everything is worth its false alarms. Gemma 26B missed only 1 of the 53, with 33% false alarms. It is also the
+fastest model.</p>
+
+<p><strong>Then we measured the proof itself (2026-10-22, overnight), and the pick changed.</strong> Each reviewer
+had to back every "this is broken" with a test, which was run on the code and on a known-good version. Gemma 26B
+could prove 60% of the real bugs, but it often talked itself in circles on code that was fine until it ran out of
+room, 28% of the time, and a review cut short is no review. Qwen3.8 proved fewer (45%) but almost never wrote a
+test that was itself wrong (1% of good code), never ran out of room, and was the fastest. So Qwen3.8 reviews
+Gemma 31B's work. The surprise: when a reviewer "proved" a bug in code that had passed all the hidden tests, it
+was usually right. The hidden tests had simply missed it (an empty cache, a word-wrapping corner case, wrong
+paths through a grid).</p>
+
+<div class="card yours">
+<strong>The loop runs on its own now (2026-10-23).</strong> Claude writes a specification and tests; a script
+then has Gemma 31B write the code, runs the tests, sends failures back with the lines responsible, has Qwen3.8
+review it with proof, and stops when it is done or stuck. Claude reads only the final report. First four real
+tasks, modules of 120–250 lines: three finished in 2–5 minutes each with every test passing; in one of them the
+reviewer found and proved a real bug the tests had missed, and the writer fixed it. The fourth stopped after three
+tries on one test: its check said only "failed", not what the code returned, so the writer never saw it had put
+one bracket in the wrong place. Lesson for Claude: write tests that show the wrong value.
+</div>
+
 <h3>What thinking is worth</h3>
 
 <div class="card yours">
@@ -465,15 +502,68 @@ four minutes a document on Gemma 31B.
   on the large Qwen3.6 copy, but the smaller copy was already as fast without it.</li>
 </ul>
 
+<h3>A sixth candidate: Strata's Qwen3.8 Coder (2026-10-21)</h3>
+
+<p><a href="https://github.com/Niko1221/Strata">Strata</a> runs a model too big for the card by keeping the
+experts it uses most in VRAM and reading the rest from RAM and the SSD. The version that fits your 32 GB of RAM
+is the <strong>Coder</strong>: Qwen3.8-Flash-Next with half its experts removed, keeping the ones for code,
+tools and images. It needs nearly the whole card and most of your RAM, so it cannot share the PC with Unity.</p>
+
+<table>
+  <tr><th>Test</th><th>Strata Coder</th><th>Best of the five kept</th></tr>
+  <tr><td>Pulling facts from long documents, thinking on</td><td><strong>95%</strong> in 26 min</td><td>89% (Gemma 31B) in 82 min</td></tr>
+  <tr><td>Finding a planted bug</td><td>100%, thinking on or off</td><td>100% (Gemma 31B, Qwen3.8)</td></tr>
+  <tr><td>Coding to spec, thinking off</td><td>61%</td><td>94% (Gemma 31B), 89% (Gemma 26B)</td></tr>
+  <tr><td>Writing rows from a document (the delegation server's way)</td><td>84%</td><td>100% (Gemma 31B, Qwen3.8)</td></tr>
+  <tr><td>Tool calls</td><td>73%</td><td>87% (Qwen3.6)</td></tr>
+  <tr><td>Writing speed, one request</td><td>~85 tokens/s</td><td>163–175 (Qwen3.6), ~150 (Gemma 26B)</td></tr>
+</table>
+
+<p>So it is very good at careful reading and bad at writing code, which is odd for a model kept for coding. Its
+Python was perfect (6 of 6), but it failed 4 of 6 C# problems, mostly with code that does not compile, and 3 of
+6 TypeScript. Since your game is C#, it is not a coder for you. Where it could earn a place is careful
+extraction: a better score than Gemma 31B in a third of the time.</p>
+
+<div class="card yours">
+<strong>Sending it several requests at once made it four times slower, not faster.</strong> On LM Studio, answering
+four requests together raises total speed. Strata is the opposite: each extra request takes VRAM away from its
+expert cache, so more of the model has to be read from the SSD. Four at once wrote 25–40 tokens/s in total; one
+at a time writes about 85. The test harness now sends Strata one request at a time.
+</div>
+
+<h3>A bigger coding test: whole modules (2026-10-22)</h3>
+
+<p>The first coding test is 18 short functions, too small to separate the strong models. This one is eight
+Python modules of the kind this project is made of: a resumable job queue, the document chunker and citation
+checker, the results-table builder, retries and a rate limiter, layered config with validation, a tool
+registry, and two changes to existing code (an expiring cache, a command-line parser with subcommands). Each
+is checked by a hidden test suite, 233 tests in all, and each model wrote every module three times. The score
+is the share of tests passed.</p>
+
+<table>
+  <tr><th>Model</th><th>Thinking off</th><th>Thinking on</th></tr>
+  <tr><td><strong>Gemma 4 31B</strong></td><td><strong>96%</strong> in 35 min</td><td>96% in 140 min</td></tr>
+  <tr><td>Strata's Qwen3.8 Coder</td><td>70% in 30 min</td><td>87% in 138 min</td></tr>
+  <tr><td>Gemma 4 26B</td><td>74% in 11 min</td><td>not run</td></tr>
+</table>
+
+<p>Gemma 31B is clearly the best coder at this size, and thinking adds nothing for it except four times the
+time. The Coder needs thinking to come close and still does not. Most of its lost points are whole modules that
+would not load at all: syntax errors, a forgotten import, a required function left out, once a stray piece of
+tool-call text in the code. Gemma 26B, the fast everyday coder, passed 89% of the short functions but only 74%
+here, so a whole module is a job for the 31B. The PC was in use during these runs, so the times are slower than
+an idle machine would give; the scores are not affected.</p>
+
 <h3>Routing, first version</h3>
 
 <table>
   <tr><th>Job</th><th>Where it should go</th><th>Evidence</th></tr>
   <tr><td>Reformat, convert, follow a template</td><td>Local, any model</td><td>Instruction following 95–98% on all five</td></tr>
   <tr><td>Routine code to a clear spec</td><td>Local: Gemma 26B writes, tests check, Gemma 31B reviews, cloud signs off</td><td>89–94% of fresh problems pass hidden tests</td></tr>
+  <tr><td>A whole module to a spec, or a change to one</td><td>Local: Gemma 31B, thinking off; tests check, cloud signs off</td><td>96% of 233 hidden tests, about 1½ minutes a module; Gemma 26B 74%</td></tr>
   <tr><td>Spot a bug in a function</td><td>Local: Gemma 31B or Qwen3.8</td><td>100% named the planted line; ~21% false alarms on real code</td></tr>
   <tr><td>Tool calls (structured actions)</td><td>Local: Qwen3.6</td><td>Tool calling 87%</td></tr>
-  <tr><td>Pull facts from long documents</td><td>Local careful mode (Gemma 31B, thinking on), or cloud when it is urgent</td><td>89% with thinking, under 45% without</td></tr>
+  <tr><td>Pull facts from long documents</td><td>Local careful mode (Gemma 31B, thinking on), or cloud when it is urgent</td><td>89% with thinking, under 45% without. Strata's Coder scored 95% in a third of the time, but needs the whole PC</td></tr>
   <tr><td>Hard reasoning, design, planning, checking facts</td><td>Cloud</td><td>Graduate science questions 63–77% locally against ~91% for frontier models</td></tr>
 </table>
 

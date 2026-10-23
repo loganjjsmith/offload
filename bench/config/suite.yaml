@@ -97,6 +97,23 @@ tasks:
     area: reading and extraction (fresh), rows by the model, answer by code, thinking off
     limit: {quick: null, full: null}
     generate: {max_tokens: 4096, extra_body: {reasoning_effort: none}}
+  # Module-sized Python work (2026-10-22, added within 2026-10-b; no existing task changed): eight
+  # modules of 80-200 lines to a spec, two of them changes to an existing module, scored by the share
+  # of 233 hidden tests passed. Three runs per task, since eight tasks are few. On request until their
+  # run times are known.
+  modules_fresh:
+    task: tasks/modules.py@modules
+    area: module-sized Python (fresh), thinking on
+    limit: {quick: null, full: null}
+    epochs: 3
+    on_request: true
+  modules_fresh_nothink:
+    task: tasks/modules.py@modules
+    area: module-sized Python (fresh), thinking off
+    limit: {quick: null, full: null}
+    epochs: 3
+    generate: {max_tokens: 12288, extra_body: {reasoning_effort: none}}
+    on_request: true
   # Reviewing other models' real solutions with no hint of a bug; scored on catches and false
   # alarms per writer. Needs the coding runs first, so it runs only when named with --only.
   review_fresh_nothink:
@@ -120,6 +137,14 @@ tasks:
     area: code review of model-written code, judged only against the specification, thinking off
     limit: {quick: null, full: null}
     generate: {max_tokens: 4096, extra_body: {reasoning_effort: none}}
+    on_request: true
+  # Prompt version 2, and a failed verdict must come with a test that shows the bug; each test is run against
+  # the code and the reference (the loop coordinator's filter for false alarms).
+  review_proof_nothink:
+    task: tasks/review_proof.py@review_proof
+    area: code review with a failing test as proof, thinking off
+    limit: {quick: null, full: null}
+    generate: {max_tokens: 6144, extra_body: {reasoning_effort: none}}
     on_request: true
   # The way reviews will run in the server: prompt version 2 and the code read without comments.
   review_fresh_v2_terse_nothink:

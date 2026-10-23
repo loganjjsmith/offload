@@ -42,23 +42,25 @@ Context 32k, one request at a time, median of repeats. Read = prompt processing;
 | qwen3.8-27b-q4xl | ollama / rocm | 14.9 | 19.6 | 1003 | 929 | 38 | 36 | 38 | 2% |
 | qwen3.8-27b-q4xl | ollama / vulkan | 18.4 | 19.4 | 762 | 705 | 39 | 39 | 41 | 2% |
 | qwen3.8-27b-q6 | lmstudio / vulkan | 47.0 | 24.4 | 676 | 620 | 48 | 44 | 53 | 0% |
+| qwen3.8-flash-next-coder-iq1m | strata / hip (strata-0.1.47-lowmem) | 23.3 | 21.8 | 574 | 701 | 80 | 85 | 96 | 0% |
 
 ## Quality
 
 Scores in percent with ± one standard error, from the quick screen unless noted. Thinking mode with the vendor's sampling and a 16k-token budget per answer. Published figures are the vendor's, at full precision, on their own harness.
 
-| Model | gpqa_diamond | mmlu_pro | ifeval | bfcl | math500 | coding_fresh | bugfind_fresh | extraction_fresh | coding_fresh_nothink | coding_fresh_terse_nothink | bugfind_fresh_nothink | extraction_fresh_nothink | extraction_rows_nothink |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| gemma4-26b-a4b-qat | 63 ±11 (n=20, 65 min)<br>published 82.3 | — | 95 (n=30, 11 min) | 67 ±9 (n=30, 21 min) | — | 94 ±6 (n=18, 8 min) | 92 ±8 (n=12, 8 min) | 42 ±10 (n=20, 38 min) | 89 ±8 (n=18, 2 min) | — | 92 ±8 (n=12, 1 min) | 22 ±4 (n=20, 3 min) | 96 ±2 (n=20, 19 min) |
-| gemma4-31b-qat | — | — | 97 (n=30, 15 min) | 77 ±8 (n=30, 21 min) | — | 100 (n=18, 11 min) | 100 (n=12, 12 min) | 89 ±4 (n=20, 82 min) | 94 ±6 (n=18, 3 min) | — | 100 (n=12, 1 min) | 41 ±6 (n=20, 7 min) | 100 (n=20, 52 min) |
-| muse-glimmer-30b-q4xl | — | — | — | — | — | — | — | — | — | — | 75 ±13 (n=12, 8 min) | 15 ±8 (n=20, 56 min, 2 unanswered, scored as wrong) | — |
-| nemotron3.5-bolt-74b-a9b-24gb | — | — | — | — | — | — | — | — | — | — | 42 ±15 (n=12, 0 min) | 22 ±4 (n=20, 2 min) | — |
-| qwen3.5-9b-q8 | 77 ±8 (n=30, 85 min)<br>published 81.7 | 75 ±7 (n=40, 36 min)<br>published 82.5 | 98 (n=40, 19 min)<br>published 91.5 | 75 ±7 (n=40, 6 min)<br>published 66.1 | 100 (n=30, 70 min) | 44 ±12 (n=18, 3 min) | 75 ±13 (n=12, 18 min) | 42 ±10 (n=20, 35 min) | 44 ±12 (n=18, 1 min) | 6 ±6 (n=18, 1 min) | 33 ±14 (n=12, 1 min) | 19 ±4 (n=20, 1 min) | 75 ±5 (n=20, 11 min) |
-| qwen3.6-35b-a3b-mtp-iq4xs | — | — | — | — | — | — | — | — | 78 ±10 (n=18, 1 min) | 67 ±11 (n=18, 1 min) | 67 ±14 (n=12, 0 min) | 20 ±4 (n=20, 1 min) | 92 ±4 (n=20, 10 min) |
-| qwen3.6-35b-a3b-mtp-q4xl | — | — | — | — | — | — | — | — | 83 ±9 (n=18, 3 min) | — | 58 ±15 (n=12, 0 min) | 22 ±4 (n=20, 1 min) | — |
-| qwen3.6-35b-a3b-q4xl | 70 ±11 (n=20, 12 min)<br>published 83.4 | — | 97 (n=30, 11 min) | 87 ±6 (n=30, 6 min) | — | 83 ±9 (n=18, 12 min) | 92 ±8 (n=12, 32 min) | 56 ±10 (n=20, 23 min) | 78 ±10 (n=18, 1 min) | — | 67 ±14 (n=12, 0 min) | 26 ±3 (n=20, 1 min) | — |
-| qwen3.8-27b-q4xl | 55 ±11 (n=20, 76 min)<br>published 89.2 | — | 97 (n=30, 28 min) | 80 ±7 (n=30, 23 min) | — | 67 ±11 (n=18, 59 min) | 92 ±8 (n=12, 15 min) | 70 ±11 (n=20, 63 min) | 83 ±9 (n=18, 2 min) | 56 ±12 (n=18, 2 min) | 100 (n=12, 1 min) | 38 ±4 (n=20, 3 min) | 100 (n=20, 27 min) |
-| qwen3.8-27b-q6 | — | — | — | — | — | — | — | — | — | — | 100 (n=12, 1 min) | 35 ±5 (n=20, 3 min) | — |
+| Model | gpqa_diamond | mmlu_pro | ifeval | bfcl | math500 | coding_fresh | bugfind_fresh | extraction_fresh | coding_fresh_nothink | coding_fresh_terse_nothink | bugfind_fresh_nothink | extraction_fresh_nothink | extraction_rows_nothink | modules_fresh | modules_fresh_nothink |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| gemma4-26b-a4b-qat | 63 ±11 (n=20, 65 min)<br>published 82.3 | — | 95 (n=30, 11 min) | 67 ±9 (n=30, 21 min) | — | 94 ±6 (n=18, 8 min) | 92 ±8 (n=12, 8 min) | 42 ±10 (n=20, 38 min) | 89 ±8 (n=18, 2 min) | — | 92 ±8 (n=12, 1 min) | 22 ±4 (n=20, 3 min) | 96 ±2 (n=20, 19 min) | — | 74 ±8 (n=24, 11 min) |
+| gemma4-31b-qat | — | — | 97 (n=30, 15 min) | 77 ±8 (n=30, 21 min) | — | 100 (n=18, 11 min) | 100 (n=12, 12 min) | 89 ±4 (n=20, 82 min) | 94 ±6 (n=18, 3 min) | — | 100 (n=12, 1 min) | 41 ±6 (n=20, 7 min) | 100 (n=20, 52 min) | 96 ±1 (n=24, 140 min) | 96 ±2 (n=24, 35 min) |
+| muse-glimmer-30b-q4xl | — | — | — | — | — | — | — | — | — | — | 75 ±13 (n=12, 8 min) | 15 ±8 (n=20, 56 min, 2 unanswered, scored as wrong) | — | — | — |
+| nemotron3.5-bolt-74b-a9b-24gb | — | — | — | — | — | — | — | — | — | — | 42 ±15 (n=12, 0 min) | 22 ±4 (n=20, 2 min) | — | — | — |
+| qwen3.5-9b-q8 | 77 ±8 (n=30, 85 min)<br>published 81.7 | 75 ±7 (n=40, 36 min)<br>published 82.5 | 98 (n=40, 19 min)<br>published 91.5 | 75 ±7 (n=40, 6 min)<br>published 66.1 | 100 (n=30, 70 min) | 44 ±12 (n=18, 3 min) | 75 ±13 (n=12, 18 min) | 42 ±10 (n=20, 35 min) | 44 ±12 (n=18, 1 min) | 6 ±6 (n=18, 1 min) | 33 ±14 (n=12, 1 min) | 19 ±4 (n=20, 1 min) | 75 ±5 (n=20, 11 min) | — | — |
+| qwen3.6-35b-a3b-mtp-iq4xs | — | — | — | — | — | — | — | — | 78 ±10 (n=18, 1 min) | 67 ±11 (n=18, 1 min) | 67 ±14 (n=12, 0 min) | 20 ±4 (n=20, 1 min) | 92 ±4 (n=20, 10 min) | — | — |
+| qwen3.6-35b-a3b-mtp-q4xl | — | — | — | — | — | — | — | — | 83 ±9 (n=18, 3 min) | — | 58 ±15 (n=12, 0 min) | 22 ±4 (n=20, 1 min) | — | — | — |
+| qwen3.6-35b-a3b-q4xl | 70 ±11 (n=20, 12 min)<br>published 83.4 | — | 97 (n=30, 11 min) | 87 ±6 (n=30, 6 min) | — | 83 ±9 (n=18, 12 min) | 92 ±8 (n=12, 32 min) | 56 ±10 (n=20, 23 min) | 78 ±10 (n=18, 1 min) | — | 67 ±14 (n=12, 0 min) | 26 ±3 (n=20, 1 min) | — | — | — |
+| qwen3.8-27b-q4xl | 55 ±11 (n=20, 76 min)<br>published 89.2 | — | 97 (n=30, 28 min) | 80 ±7 (n=30, 23 min) | — | 67 ±11 (n=18, 59 min) | 92 ±8 (n=12, 15 min) | 70 ±11 (n=20, 63 min) | 83 ±9 (n=18, 2 min) | 56 ±12 (n=18, 2 min) | 100 (n=12, 1 min) | 38 ±4 (n=20, 3 min) | 100 (n=20, 27 min) | — | — |
+| qwen3.8-27b-q6 | — | — | — | — | — | — | — | — | — | — | 100 (n=12, 1 min) | 35 ±5 (n=20, 3 min) | — | — | — |
+| qwen3.8-flash-next-coder-iq1m | 60 ±11 (n=20, 32 min) | 73 ±8 (n=30, 36 min) | 97 (n=30, 16 min) | 73 ±8 (n=30, 9 min) | 100 (n=20, 6 min) | 61 ±12 (n=18, 29 min) | 100 (n=12, 12 min) | 95 ±3 (n=20, 26 min) | 61 ±12 (n=18, 4 min) | 56 ±12 (n=18, 2 min) | 100 (n=12, 2 min) | 32 ±6 (n=20, 5 min) | 84 ±5 (n=20, 13 min) | 87 ±8 (n=24, 138 min) | 70 ±8 (n=24, 30 min) |
 
 ## Code review of model-written code
 

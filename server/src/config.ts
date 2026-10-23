@@ -2,7 +2,15 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export type Role = { model: string; thinking: boolean; contextLength: number };
+/** `maxAnswerTokens` overrides the server-wide answer budget, for roles that write whole files. */
+export type Role = { model: string; thinking: boolean; contextLength: number; maxAnswerTokens?: number };
+
+/**
+ * The loop coordinator (docs/COORDINATOR.md): which roles write and review, and where tests run. With no
+ * `sandboxImage`, test commands run directly on this machine.
+ */
+export type CoordinatorConfig = { writer: string; reviewer: string; sandboxImage?: string; testTimeoutSeconds: number;
+  maxReviews: number };
 
 export type Config = {
   endpoint: string;
@@ -19,6 +27,7 @@ export type Config = {
   logFile: string;
   /** A flow switches off when its redone and misleading answers reach `maxBadShare` of its last `window` graded calls. */
   tripwire: { window: number; maxBadShare: number };
+  coordinator?: CoordinatorConfig;
 };
 
 export const SERVER_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");

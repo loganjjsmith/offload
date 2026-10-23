@@ -48,6 +48,14 @@ config starts a new flow with no grades, so that path skips the bench re-run; do
 `filters/` holds deterministic output filters (no model): `unity-tests.ts` turns a Unity test run into
 counts plus the failures with `file:line`. Not wired into a tool yet.
 
+## Loop coordinator
+
+`node src/coordinate.ts <task folder>` runs one change through local write, test, review and fix rounds until
+it is cloud-ready or a guard stops it, then writes `result.md` and `result.json` into the folder. The task folder
+format, the loop and the guards are in `docs/COORDINATOR.md`. Roles `writer` and `reviewer` in `config.json`
+name the models; tests run in the bench's sandbox image (`sandboxImage`, Docker must be running). Each run is
+logged as a `coordinator` call, so `grade_handoff` grades it like any other handoff.
+
 ## Running
 
 From this folder: `npm install` once, `npm test` for the tests (no GPU needed; a fake local model stands
@@ -67,4 +75,9 @@ in), `npm start` to run the server by hand. Every call is logged to `logs/calls.
 | `src/extract.ts` | The row method: the prompt, reading rows from an answer, checking them against the files, the table |
 | `src/log.ts` | The call log and its totals |
 | `src/tripwire.ts` | Grades, the switch-off rule, refusals for switched-off flows, the grades report |
+| `src/coordinate.ts` | Command line for the loop coordinator |
+| `src/coordinator/task.ts` | The task folder, the work folder, reading files from a writer's answer |
+| `src/coordinator/run.ts` | Running tests in the sandbox, counting results, quoting the code lines a failure points at |
+| `src/coordinator/prompts.ts` | Writer and reviewer prompts, reading a review's verdict and proof test |
+| `src/coordinator/loop.ts` | The rounds, the guards, checking bug claims, the result report |
 | `src/config.ts` | Loads `config.json` (or the file named by `OFFLOAD_CONFIG`) and `config.local.json` beside it |

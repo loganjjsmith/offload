@@ -22,6 +22,8 @@ HEADLINE = {
     "bugfind_fresh_nothink": ("right_line/accuracy", None),
     "extraction_fresh_nothink": ("fields_correct/mean", None),
     "extraction_rows_nothink": ("fields_correct/mean", None),
+    "modules_fresh": ("tests_passed/mean", None),
+    "modules_fresh_nothink": ("tests_passed/mean", None),
 }
 
 

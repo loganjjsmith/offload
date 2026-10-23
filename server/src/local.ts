@@ -13,7 +13,7 @@ export async function chat(cfg: Config, r: Role, prompt: string): Promise<Reply>
   const body: Record<string, unknown> = {
     model: r.model,
     messages: [{ role: "user", content: prompt }],
-    max_tokens: r.thinking ? cfg.maxAnswerTokens * 4 : cfg.maxAnswerTokens,
+    max_tokens: r.maxAnswerTokens ?? (r.thinking ? cfg.maxAnswerTokens * 4 : cfg.maxAnswerTokens),
   };
   if (!r.thinking) body.reasoning_effort = "none";
   const started = performance.now();

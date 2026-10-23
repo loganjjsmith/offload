@@ -45,15 +45,6 @@ models:
     released: 2026-08
     source: https://huggingface.co/Qwen/Qwen3.8-27B
 
-  # Runs on Strata only (runtime strata). 125B mixture of experts pruned to 256 of 512 experts, at
-  # IQ1_M: the only size Strata lists as fitting 32 GB of RAM. `file` is Strata's, not LM Studio's.
-  qwen3.8-flash-next-coder-iq1m:
-    file: strata/Qwen3.8-Flash-Next-Coder-IQ1_M
-    strata: {model: iq1_m, family: coder}
-    tier: strong
-    family: qwen
-    source: https://github.com/Niko1221/Strata/blob/main/docs/MODELS.md
-
   gemma4-31b-qat:
     file: google/gemma-4-31B-GGUF/gemma-4-31B_q4_0-it.gguf
     tier: strong

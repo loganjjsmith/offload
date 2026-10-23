@@ -1,0 +1,7 @@
+# Module-sized Python tasks: Strata's Coder against our best coder, Gemma 4 31B, thinking off then on.
+# Gemma 4 26B (the everyday coder) last, thinking off only. Docker must be running.
+quality qwen3.8-flash-next-coder-iq1m strata hip --only modules_fresh_nothink --label strata-0.1.47-lowmem
+quality gemma4-31b-qat lmstudio vulkan --only modules_fresh_nothink
+quality qwen3.8-flash-next-coder-iq1m strata hip --only modules_fresh --label strata-0.1.47-lowmem
+quality gemma4-31b-qat lmstudio vulkan --only modules_fresh
+quality gemma4-26b-a4b-qat lmstudio vulkan --only modules_fresh_nothink

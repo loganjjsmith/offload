@@ -68,11 +68,17 @@ class _SpillWatch(threading.Thread):
 
 
 def _prepare(runtime, model, backend, context_length, parallel):
-    """Loads with as many parallel slots as fit in VRAM, halving on failure or on spill to system RAM."""
+    """Loads with as many parallel slots as fit in VRAM, halving on failure or on spill to system RAM.
+
+    Spill is the growth in shared memory over the load: Windows itself keeps some there (0.5 GB on
+    2026-10-22 with no model loaded), which is not the model's.
+    """
     while True:
         try:
+            runtime.teardown()
+            baseline = max(gpu.snapshot("Shared").values() or [0.0])
             endpoint = runtime.prepare(model, backend, context_length, parallel)
-            spill = max(gpu.snapshot("Shared").values() or [0.0])
+            spill = max(gpu.snapshot("Shared").values() or [0.0]) - baseline
             if runtime.offloads_to_ram or spill <= MAX_SPILL_BYTES or parallel == 1:
                 return endpoint, parallel
             print(f"{parallel} slots spill {spill / 1e9:.1f} GB to system RAM; halving")
@@ -83,9 +89,33 @@ def _prepare(runtime, model, backend, context_length, parallel):
         parallel //= 2
 
 
+def _match_resume(paths, tasks, tier, limit):
+    """Pairs each unfinished Inspect log with the suite task it was running: same task, arguments, size and mode."""
+    from inspect_ai.log import read_eval_log
+
+    found = {}
+    for path in paths or []:
+        header = read_eval_log(path, header_only=True)
+        if header.status == "success":
+            raise SystemExit(f"{path} already finished; nothing to resume")
+        for name, task in tasks.items():
+            args = header.eval.task_args or {}
+            if (header.eval.task.split("/")[-1] == task["task"].split("@")[-1].split("/")[-1]
+                    and all(args.get(k) == v for k, v in task.get("task_args", {}).items())
+                    and header.eval.config.limit == (limit or task["limit"][tier])
+                    and header.eval.model_generate_config.extra_body == task.get("generate", {}).get("extra_body")):
+                found[name] = str(path)
+                break
+        else:
+            raise SystemExit(f"{path} matches no task in this run")
+    return found
+
+
 def run(model_key, runtime_name, backend, tier="quick", only=None, label=None, limit=None, max_tokens=None,
-        gated=False):
+        gated=False, resume=None):
+    """Runs the suite's tasks; `resume` takes unfinished Inspect logs, which continue instead of starting over."""
     from inspect_ai import eval as inspect_eval
+    from inspect_ai import eval_retry
     from inspect_ai.model import GenerateConfig
 
     suite = config.load("suite")
@@ -103,9 +133,11 @@ def run(model_key, runtime_name, backend, tier="quick", only=None, label=None, l
         names = [n for n in screen if model_key not in done] + [n for n in names if n not in screen]
     tasks = {n: suite["tasks"][n] for n in names
              if model["tier"] in suite["tasks"][n].get("tiers", [model["tier"]])}
+    resume = _match_resume(resume, tasks, tier, limit)
 
     runtime = runtimes.get(runtime_name)
-    endpoint, parallel = _prepare(runtime, model, backend, gen["max_tokens"] + gen["prompt_room"], gen["parallel"])
+    endpoint, parallel = _prepare(runtime, model, backend, gen["max_tokens"] + gen["prompt_room"],
+                                  min(gen["parallel"], runtime.max_parallel or gen["parallel"]))
     gen = dict(gen, parallel=parallel)
     os.environ["LOCAL_BASE_URL"] = endpoint.base_url
     os.environ["LOCAL_API_KEY"] = "local"
@@ -135,12 +167,20 @@ def run(model_key, runtime_name, backend, tier="quick", only=None, label=None, l
                 settings["max_tokens"] = min(settings["max_tokens"], max_tokens)
             entry["max_tokens"] = settings["max_tokens"]
             try:
-                logs = inspect_eval(task["task"], model=f"openai-api/local/{endpoint.model}",
-                                    task_args=task.get("task_args", {}),
-                                    limit=limit or task["limit"][tier], sample_shuffle=suite["sample_seed"],
-                                    epochs=1,
-                                    log_dir=str(config.RAW_DIR / "inspect"), display="none",
-                                    fail_on_error=gen["fail_on_error"], score_on_error=True, **settings)
+                if name in resume:
+                    # Samples already in the log are kept; the rest run with the log's own settings.
+                    entry["resumed"] = os.path.basename(resume[name])
+                    logs = eval_retry(resume[name], log_dir=str(config.RAW_DIR / "inspect"), display="none",
+                                      fail_on_error=gen["fail_on_error"], score_on_error=True,
+                                      max_connections=gen["parallel"], timeout=gen["timeout_s"],
+                                      attempt_timeout=gen["attempt_timeout_s"], max_retries=2)
+                else:
+                    logs = inspect_eval(task["task"], model=f"openai-api/local/{endpoint.model}",
+                                        task_args=task.get("task_args", {}),
+                                        limit=limit or task["limit"][tier], sample_shuffle=suite["sample_seed"],
+                                        epochs=task.get("epochs", 1),
+                                        log_dir=str(config.RAW_DIR / "inspect"), display="none",
+                                        fail_on_error=gen["fail_on_error"], score_on_error=True, **settings)
                 log = logs[0]
                 entry.update(status=log.status, samples=len(log.samples or []) or log.results.total_samples,
                              errored_samples=sum(1 for s in log.samples or [] if s.error),

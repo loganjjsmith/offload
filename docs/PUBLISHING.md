@@ -1,12 +1,12 @@
 # Publishing the public snapshot
 
 The project has two faces. `main` is the private working branch with its full history and the handoff
-log. `public` is a sanitised snapshot of `main` with history of its own, made by
-`tooling/public_snapshot.py`, and it is the only branch that ever goes to a public repository.
+log. The public face is a sanitised snapshot of `main`, made by `tooling/public_snapshot.py`, kept in a
+separate public repository with history of its own. The private history never goes there.
 
-GitHub sets visibility per repository, not per branch, so the public snapshot lives in its own public
-repository. The private repository (if there is one) never needs the `public` branch, and the public
-repository must never receive `main`.
+The public repository is its own git folder beside this one (`offload-public`), with its own commit
+identity set at repository level: the public GitHub account's no-reply address, so no personal address is
+ever in a public commit. It is pushed from GitHub Desktop, signed in to the public account.
 
 ## What the snapshot leaves out
 
@@ -15,57 +15,51 @@ Set in `tooling/public.json`:
 - `docs/HANDOFF.md`, the session log, replaced by a short note (`tooling/public/HANDOFF.md`)
 - the Remote Control scripts in `tooling/`, which are about this one machine's remote access
 - everything not committed: the virtual environment, raw benchmark logs, server call logs,
-  `server/config.local.json`, `scratch/`, and agent settings
-- every private commit: the public branch starts from one snapshot commit and shares no history with `main`
+  `server/config.local.json`, `scratch/`, `private/`, and agent settings
+- every private commit: only the snapshot's files are copied, never history
 
-Before anything is written, every file name, file and commit message is scanned for home-folder paths,
-email addresses (other than GitHub's and Anthropic's no-reply addresses) and API-key shapes. One match
-stops the run. Extra private patterns, such as a phone number or street name, go in
-`tooling/public.local.json` (not committed): `{ "forbidden": ["pattern one", "pattern two"] }`.
+Before anything is written, every file name and file is scanned for home-folder paths, email addresses
+(other than GitHub's and Anthropic's no-reply addresses) and API-key shapes. One match stops the run.
+Extra private patterns, such as other projects' names, go in `tooling/public.local.json` (not committed):
+`{ "forbidden": ["pattern one", "pattern two"] }`, so the patterns themselves are never published.
 
 What the scan cannot judge is tone and context. Committed files are written to be publishable: other
-projects are named only in the uncommitted `private/` folder, and examples are generic. Names that must
-never appear (personal handles, other projects, the storage server) are patterns in
-`tooling/public.local.json`, so a slip stops the snapshot. Read the snapshot once more before each push.
+projects are named only in the uncommitted `private/` folder, examples are generic, and samples run on
+public material only. Read the changes once more before each push.
 
-## First publication
+## Updating the public repository
 
-In PowerShell, from the project root:
+From this project's root, in PowerShell, after work lands on `main`:
 
-1. Review what will be public. This lists the files and opens nothing on the internet:
+1. Check first; this writes nothing:
    ```powershell
-   git show public --stat
-   git show public:README.md
+   .venv\Scripts\python tooling\public_snapshot.py --export ..\offload-public --dry-run
    ```
-2. Create an empty **public** repository on GitHub, for example `offload`, with no README, licence or
-   .gitignore (the snapshot has its own). On github.com: New repository, Public. Or with the GitHub CLI:
+2. Write the snapshot into the public repository's folder. Files the snapshot no longer has are deleted
+   there; its history is untouched, and nothing is committed:
    ```powershell
-   gh repo create offload --public --description "Local AI delegation for a cloud coding agent, decided by measurement"
+   .venv\Scripts\python tooling\public_snapshot.py --export ..\offload-public
    ```
-3. Add it as a remote that can only ever receive the `public` branch, as that repository's `main`:
-   ```powershell
-   git remote add public https://github.com/loganjjsmith/offload.git
-   git config remote.public.push refs/heads/public:refs/heads/main
-   ```
-4. Push. With the push setting above, a plain `git push public` sends only the snapshot:
-   ```powershell
-   git push public
-   ```
-   Never run `git push --all public` or `git push --mirror public`: those would send `main` too.
+3. Review and commit in GitHub Desktop (or `git -C ..\offload-public diff --stat` and a commit there),
+   with a message that describes the changes for a public reader. Then push from GitHub Desktop.
 
-## Updating it later
+Check the commit identity once if in doubt: `git -C ..\offload-public config user.email` must print the
+no-reply address.
 
-After work lands on `main`, from the project root:
+## The older route: a branch in this repository
+
+`tooling/public_snapshot.py` without `--export` builds the same snapshot as commits on a `public` branch
+of this repository, with history of its own (`--dry-run` to check, `-m "Text"` for the message). It needs a
+remote that only ever receives that branch:
 
 ```powershell
-.venv\Scripts\python tooling\public_snapshot.py --dry-run
-.venv\Scripts\python tooling\public_snapshot.py
+git remote add public https://github.com/<account>/offload.git
+git config remote.public.push refs/heads/public:refs/heads/main
 git push public
 ```
 
-The first command shows what changed and the commit message it would write (a dated list of the
-`main` commit subjects since the last snapshot); pass `-m "Your message"` to write your own. Each run adds
-one commit on top of the last snapshot, so the public history grows as a series of dated snapshots.
+Never `git push --all public` or `git push --mirror public`: those would send `main` too. The separate
+repository above avoids that risk altogether, which is why it is the route in use.
 
 ## After the first push
 

@@ -5,7 +5,16 @@
   "idleUnloadSeconds": 900,
   "roles": {
     "fast": { "model": "gemma-4-26b-a4b", "thinking": false, "contextLength": 32768 },
-    "careful": { "model": "gemma-4-31b", "thinking": true, "contextLength": 32768 }
+    "careful": { "model": "gemma-4-31b", "thinking": true, "contextLength": 32768 },
+    "writer": { "model": "gemma-4-31b", "thinking": false, "contextLength": 32768, "maxAnswerTokens": 12288 },
+    "reviewer": { "model": "qwen3.8-27b", "thinking": false, "contextLength": 32768, "maxAnswerTokens": 6144 }
+  },
+  "coordinator": {
+    "writer": "writer",
+    "reviewer": "reviewer",
+    "sandboxImage": "offload-bench-sandbox:1",
+    "testTimeoutSeconds": 300,
+    "maxReviews": 2
   },
   "requestTimeoutSeconds": 1800,
   "maxAnswerTokens": 4096,
